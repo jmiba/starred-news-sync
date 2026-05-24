@@ -1,2 +1,2 @@
 # starred-news-sync
-Sync your starred news from your RRS reader and convert them to Markdown.
+Import your starred news items from your RRS reader ito Obsidian, automatically adding YAML frontmatter.
