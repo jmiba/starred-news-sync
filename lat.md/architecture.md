@@ -2,7 +2,7 @@
 
 Starred News Sync imports saved RSS reader items through configurable reader APIs and writes them as Markdown notes with stable YAML metadata.
 
-The central flow is [[architecture#Plugin lifecycle]] -> [[architecture#Settings contract]] -> [[architecture#Sync orchestration]] -> [[architecture#Reader adapter boundary]] -> [[architecture#Note writing]].
+The central flow is [[architecture#Plugin lifecycle]] -> [[architecture#Settings contract]] -> [[architecture#Sync orchestration]] -> [[architecture#Reader adapter boundary]] -> [[architecture#Article source fetching]] -> [[architecture#Note writing]].
 
 ## Plugin lifecycle
 
@@ -21,6 +21,12 @@ The settings model is defined in [[src/types.ts#StarredNewsSyncSettings]]. The s
 Sync orchestration creates the selected reader client, fetches a bounded number of starred items, and passes normalized items to the note writer.
 
 The orchestration boundary is [[src/syncer.ts#StarredNewsSyncer]]. It depends on [[architecture#Reader adapter boundary]] for fetching and [[architecture#Note writing]] for vault writes.
+
+## Article source fetching
+
+Article source fetching is optional Defuddle-based enrichment for new imports when reader API content is missing or source-page content is preferred.
+
+The fetcher is [[src/article-source-fetcher.ts#ArticleSourceFetcher]]. It validates article URLs, skips local/private-style hosts, bounds response size, runs Defuddle without async fallbacks, strips risky elements, optionally keeps safe remote image links, and returns sanitized article HTML for [[architecture#Note writing]].
 
 ## Reader adapter boundary
 
@@ -56,4 +62,4 @@ Feedly stream imports are implemented by [[src/readers/feedly.ts#FeedlyClient]].
 
 Note writing owns vault folder creation, duplicate checks by generated path, YAML frontmatter, Markdown body formatting, and imported filename rules.
 
-The writer is [[src/note-writer.ts#NoteWriter]]. HTML returned by readers is converted by [[src/utils/html-to-markdown.ts#htmlToMarkdown]], while note filenames use an Obsidian-safe article title followed by ` - RSS ` and a short hash.
+The writer is [[src/note-writer.ts#NoteWriter]]. HTML returned by readers or [[architecture#Article source fetching]] is converted by [[src/utils/html-to-markdown.ts#htmlToMarkdown]], while note filenames use an Obsidian-safe article title followed by ` - RSS ` and a short hash.

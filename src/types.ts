@@ -6,6 +6,8 @@ export type ReaderProvider =
 	| "feedly"
 	| "miniflux";
 
+export type ArticleSourceMode = "missing" | "always";
+
 export interface StarredNewsSyncSettings {
 	provider: ReaderProvider;
 	apiUrl: string;
@@ -18,6 +20,9 @@ export interface StarredNewsSyncSettings {
 	outputFolder: string;
 	importLimit: number;
 	includeArticleContent: boolean;
+	fetchArticleSource: boolean;
+	articleSourceMode: ArticleSourceMode;
+	includeRemoteImages: boolean;
 	noteTags: string;
 	autoSync: boolean;
 	syncIntervalMinutes: number;
@@ -35,6 +40,8 @@ export interface StarredNewsItem {
 	updatedAt?: string;
 	contentHtml?: string;
 	summaryHtml?: string;
+	contentSource?: "reader" | "article_url";
+	contentFetchedAt?: string;
 }
 
 export interface ReaderClient {

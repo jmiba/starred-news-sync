@@ -2,10 +2,18 @@ import { App, normalizePath } from "obsidian";
 import { htmlToMarkdown } from "./utils/html-to-markdown";
 import type { StarredNewsItem, StarredNewsSyncSettings, SyncResult } from "./types";
 
+interface NoteWriterOptions {
+	beforeWrite?: (item: StarredNewsItem) => Promise<StarredNewsItem>;
+}
+
 export class NoteWriter {
 	constructor(private readonly app: App) {}
 
-	async writeItems(items: StarredNewsItem[], settings: StarredNewsSyncSettings): Promise<SyncResult> {
+	async writeItems(
+		items: StarredNewsItem[],
+		settings: StarredNewsSyncSettings,
+		options: NoteWriterOptions = {}
+	): Promise<SyncResult> {
 		const outputFolder = settings.outputFolder.trim() ? normalizePath(settings.outputFolder.trim()) : "";
 		const createdPaths: string[] = [];
 		let imported = 0;
@@ -23,7 +31,8 @@ export class NoteWriter {
 				continue;
 			}
 
-			await this.app.vault.create(path, formatNote(item, settings));
+			const itemToWrite = options.beforeWrite ? await options.beforeWrite(item) : item;
+			await this.app.vault.create(path, formatNote(itemToWrite, settings));
 			createdPaths.push(path);
 			imported++;
 		}
@@ -75,6 +84,8 @@ function formatNote(item: StarredNewsItem, settings: StarredNewsSyncSettings): s
 	appendYamlValue(lines, "feed_url", item.feedUrl);
 	appendYamlValue(lines, "published", item.publishedAt);
 	appendYamlValue(lines, "updated", item.updatedAt);
+	appendYamlValue(lines, "content_source", item.contentSource);
+	appendYamlValue(lines, "content_fetched_at", item.contentFetchedAt);
 
 	if (tags.length > 0) {
 		lines.push("tags:");

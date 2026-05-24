@@ -1,6 +1,6 @@
 {
 	"name": "starred-news-sync",
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"description": "Import starred RSS reader items as notes with YAML frontmatter.",
 	"main": "main.js",
 	"type": "module",
@@ -24,6 +24,7 @@
 		"jiti": "2.6.1"
 	},
 	"dependencies": {
+		"defuddle": "^0.18.1",
 		"obsidian": "latest"
 	}
 }

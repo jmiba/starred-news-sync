@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type StarredNewsSyncPlugin from "./main";
-import type { ReaderProvider, StarredNewsSyncSettings } from "./types";
+import type { ArticleSourceMode, ReaderProvider, StarredNewsSyncSettings } from "./types";
 
 export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	provider: "google-reader",
@@ -14,6 +14,9 @@ export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	outputFolder: "Starred news",
 	importLimit: 50,
 	includeArticleContent: true,
+	fetchArticleSource: false,
+	articleSourceMode: "missing",
+	includeRemoteImages: false,
 	noteTags: "rss-starred, news",
 	autoSync: false,
 	syncIntervalMinutes: 60,
@@ -172,15 +175,15 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 					});
 			});
 
-			new Setting(containerEl)
-				.setName("Note tags")
-				.setDesc("Comma-separated tags added to YAML frontmatter.")
-				.addText((text) => {
-					text.setValue(settings.noteTags).onChange(async (value) => {
-						settings.noteTags = value;
-						await this.plugin.saveSettings();
-					});
+		new Setting(containerEl)
+			.setName("Note tags")
+			.setDesc("Comma-separated tags added to YAML frontmatter.")
+			.addText((text) => {
+				text.setValue(settings.noteTags).onChange(async (value) => {
+					settings.noteTags = value;
+					await this.plugin.saveSettings();
 				});
+			});
 
 		new Setting(containerEl)
 			.setName("Include article content")
@@ -188,9 +191,47 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle.setValue(settings.includeArticleContent).onChange(async (value) => {
 					settings.includeArticleContent = value;
-					await this.plugin.saveSettings();
+					await this.saveAndRefresh();
 				});
 			});
+
+		if (settings.includeArticleContent) {
+			new Setting(containerEl)
+				.setName("Fetch article source text")
+				.setDesc("Optional. Requests article pages for new imports and extracts readable text from the returned HTML.")
+				.addToggle((toggle) => {
+					toggle.setValue(settings.fetchArticleSource).onChange(async (value) => {
+						settings.fetchArticleSource = value;
+						await this.saveAndRefresh();
+					});
+				});
+
+			if (settings.fetchArticleSource) {
+				new Setting(containerEl)
+					.setName("Source fetch mode")
+					.setDesc("Choose whether reader API content or article page content should be preferred.")
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("missing", "When reader content is missing")
+							.addOption("always", "Always prefer article page")
+							.setValue(settings.articleSourceMode)
+							.onChange(async (value) => {
+								settings.articleSourceMode = value as ArticleSourceMode;
+								await this.plugin.saveSettings();
+							});
+					});
+
+				new Setting(containerEl)
+					.setName("Include remote images")
+					.setDesc("Keep HTTP and HTTPS image links from fetched article pages. Previewing notes may contact image hosts.")
+					.addToggle((toggle) => {
+						toggle.setValue(settings.includeRemoteImages).onChange(async (value) => {
+							settings.includeRemoteImages = value;
+							await this.plugin.saveSettings();
+						});
+					});
+			}
+		}
 
 		new Setting(containerEl).setName("Sync").setHeading();
 
