@@ -2,6 +2,9 @@
 
 Import starred or saved RSS reader items into Obsidian as Markdown notes with YAML frontmatter.
 
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.18341648-blue)](https://doi.org/10.5281/zenodo.20370046)
+
+
 ## Features
 
 - Adds a **Sync starred items now** command and ribbon action.
