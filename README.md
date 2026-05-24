@@ -11,6 +11,7 @@ Import starred or saved RSS reader items into Obsidian as Markdown notes with YA
 - Converts returned HTML summaries/content into Markdown and strips unsafe HTML elements and event attributes.
 - Optionally fetches the original article page for new imports and extracts readable content with Defuddle.
 - Keeps fetched article images only when remote images are explicitly enabled.
+- Can render imported notes from an optional Templater-compatible template.
 
 ## Supported readers
 
@@ -36,6 +37,7 @@ Other likely compatible readers include services or servers that expose Google R
 - **Access token**: Used by Feedly, Miniflux, OAuth-based Inoreader, or precomputed GoogleLogin/Fever tokens.
 - **Output folder**: Destination folder in the vault.
 - **Note tags**: Comma-separated YAML tags added to imported notes.
+- **Note template**: Optional vault path to a Markdown template. If Templater is installed, Templater commands are rendered with the imported RSS item injected as `rss`.
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
 - **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or always preferred over reader content.
 - **Include remote images**: Optional. Keeps safe HTTP and HTTPS image links from fetched article pages. Off by default because previewing notes may contact image hosts.
@@ -44,6 +46,40 @@ Other likely compatible readers include services or servers that expose Google R
 Credentials are stored in this plugin's Obsidian data file. By default, the plugin only sends network requests to the reader API URL you configure.
 
 If **Fetch article source text** is enabled, the plugin also requests article URLs from your starred items and extracts readable content with [Defuddle](https://github.com/kepano/defuddle). It only accepts HTTP and HTTPS URLs, skips localhost/private-network-style hosts, limits article responses to 2 MB, removes scripts/forms/active content/inline event handlers, disables Defuddle's async third-party fallbacks, and converts the extracted HTML to Markdown before writing notes. Remote article images are removed unless **Include remote images** is enabled; when enabled, only safe HTTP and HTTPS image links are kept, and Obsidian may contact those image hosts when rendering notes. This may still disclose your IP address and user agent to article websites.
+
+## Templates
+
+Set **Note template** to a vault path such as `Templates/Starred news item`. Wikilinks such as `[[Templates/Starred news item]]` also work. When [Templater](https://github.com/SilentVoid13/Templater) is installed, the plugin injects these objects before rendering:
+
+- `rss`: the full import context.
+- `item`: alias for `rss.item`, containing normalized reader fields.
+- `content`: alias for `rss.content`, containing selected HTML/Markdown content fields.
+
+Common fields include `rss.title`, `rss.url`, `rss.reader`, `rss.author`, `rss.feedTitle`, `rss.feedUrl`, `rss.publishedAt`, `rss.updatedAt`, `rss.importedAt`, `rss.tags`, `rss.notePath`, `rss.fileName`, `rss.shortHash`, `rss.byline`, `rss.contentHtml`, `rss.summaryHtml`, `rss.selectedContentHtml`, `rss.contentMarkdown`, `rss.summaryMarkdown`, `rss.contentSource`, and `rss.contentFetchedAt`. The default YAML fields are also available as `rss.frontmatter`.
+
+Example template:
+
+```md
+---
+title: <% JSON.stringify(rss.title) %>
+url: <% JSON.stringify(rss.url) %>
+reader: <% JSON.stringify(rss.reader) %>
+imported: <% JSON.stringify(rss.importedAt) %>
+tags:
+<%* for (const tag of rss.tags) { tR += `  - ${JSON.stringify(tag)}\n`; } -%>
+---
+# <% rss.title %>
+
+<% rss.byline %>
+
+[Read original](<% rss.url %>)
+
+<% rss.contentMarkdown %>
+```
+
+If Templater is not installed, the plugin still replaces simple placeholders such as `{{rss.title}}`, `{{rss.contentMarkdown}}`, and `{{content.markdown}}`. Templater JavaScript blocks only run when Templater is installed. Use templates you trust, because Templater templates can execute JavaScript.
+
+Avoid moving or renaming the imported note from inside a template if you rely on duplicate detection, because existing imports are detected by the generated note path.
 
 ## Development
 

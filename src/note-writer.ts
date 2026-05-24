@@ -1,5 +1,11 @@
-import { App, normalizePath } from "obsidian";
-import { htmlToMarkdown } from "./utils/html-to-markdown";
+import { App, normalizePath, TFile } from "obsidian";
+import {
+	buildNoteTemplateContext,
+	formatDefaultNote,
+	renderNoteTemplate,
+	resolveTemplateFile,
+	type NoteIdentity,
+} from "./template-renderer";
 import type { StarredNewsItem, StarredNewsSyncSettings, SyncResult } from "./types";
 
 interface NoteWriterOptions {
@@ -15,25 +21,48 @@ export class NoteWriter {
 		options: NoteWriterOptions = {}
 	): Promise<SyncResult> {
 		const outputFolder = settings.outputFolder.trim() ? normalizePath(settings.outputFolder.trim()) : "";
+		const templatePath = settings.noteTemplatePath.trim();
+		const templateFile = templatePath ? resolveTemplateFile(this.app, templatePath) : null;
 		const createdPaths: string[] = [];
 		let imported = 0;
 		let skipped = 0;
+
+		if (templatePath && !templateFile) {
+			throw new Error(`Note template was not found: ${templatePath}`);
+		}
 
 		if (outputFolder) {
 			await this.ensureFolder(outputFolder);
 		}
 
 		for (const item of items) {
-			const path = this.buildNotePath(item, outputFolder);
+			const identity = this.buildNoteIdentity(item, outputFolder);
 
-			if (await this.app.vault.adapter.exists(path)) {
+			if (await this.app.vault.adapter.exists(identity.path)) {
 				skipped++;
 				continue;
 			}
 
 			const itemToWrite = options.beforeWrite ? await options.beforeWrite(item) : item;
-			await this.app.vault.create(path, formatNote(itemToWrite, settings));
-			createdPaths.push(path);
+			const importedAt = new Date().toISOString();
+			const context = buildNoteTemplateContext(itemToWrite, settings, identity, importedAt);
+			const defaultNote = formatDefaultNote(context);
+
+			if (templateFile) {
+				const targetFile = await this.app.vault.create(identity.path, defaultNote);
+
+				try {
+					const renderedNote = await renderNoteTemplate(this.app, templateFile, targetFile, context);
+					await this.app.vault.modify(targetFile, renderedNote);
+				} catch (error) {
+					await this.trashPartialNote(targetFile);
+					throw error;
+				}
+			} else {
+				await this.app.vault.create(identity.path, defaultNote);
+			}
+
+			createdPaths.push(identity.path);
 			imported++;
 		}
 
@@ -58,101 +87,25 @@ export class NoteWriter {
 		}
 	}
 
-	private buildNotePath(item: StarredNewsItem, outputFolder: string): string {
+	private buildNoteIdentity(item: StarredNewsItem, outputFolder: string): NoteIdentity {
 		const hash = shortHash(item.url || item.id).slice(0, 8);
 		const title = sanitizeObsidianFileName(item.title || item.url || item.id);
-		const filename = `${title} - RSS ${hash}.md`;
+		const fileName = `${title} - RSS ${hash}.md`;
 
-		return outputFolder ? `${outputFolder}/${filename}` : filename;
+		return {
+			path: outputFolder ? `${outputFolder}/${fileName}` : fileName,
+			fileName,
+			shortHash: hash,
+		};
 	}
-}
 
-function formatNote(item: StarredNewsItem, settings: StarredNewsSyncSettings): string {
-	const importedAt = new Date().toISOString();
-	const tags = parseTags(settings.noteTags);
-	const lines = [
-		"---",
-		`title: ${yamlString(item.title)}`,
-		`url: ${yamlString(item.url)}`,
-		`reader: ${yamlString(item.reader)}`,
-		`reader_item_id: ${yamlString(item.id)}`,
-		`imported: ${yamlString(importedAt)}`,
-	];
-
-	appendYamlValue(lines, "author", item.author);
-	appendYamlValue(lines, "feed", item.feedTitle);
-	appendYamlValue(lines, "feed_url", item.feedUrl);
-	appendYamlValue(lines, "published", item.publishedAt);
-	appendYamlValue(lines, "updated", item.updatedAt);
-	appendYamlValue(lines, "content_source", item.contentSource);
-	appendYamlValue(lines, "content_fetched_at", item.contentFetchedAt);
-
-	if (tags.length > 0) {
-		lines.push("tags:");
-
-		for (const tag of tags) {
-			lines.push(`  - ${yamlString(tag)}`);
+	private async trashPartialNote(file: TFile): Promise<void> {
+		try {
+			await this.app.fileManager.trashFile(file);
+		} catch (error) {
+			console.warn("Starred News Sync could not remove a partially rendered note.", error);
 		}
 	}
-
-	lines.push("---", "", `# ${item.title || "Untitled RSS item"}`, "");
-
-	if (item.url) {
-		lines.push(`[Read original](${item.url})`, "");
-	}
-
-	const byline = buildByline(item);
-
-	if (byline) {
-		lines.push(byline, "");
-	}
-
-	const html = settings.includeArticleContent ? item.contentHtml || item.summaryHtml : item.summaryHtml;
-	const markdown = html ? htmlToMarkdown(html) : "";
-
-	if (markdown) {
-		lines.push(markdown, "");
-	} else {
-		lines.push("No article content was returned by the reader API.", "");
-	}
-
-	return lines.join("\n").replace(/\n{3,}/g, "\n\n");
-}
-
-function buildByline(item: StarredNewsItem): string {
-	const parts = [item.feedTitle, item.author, item.publishedAt?.slice(0, 10)].filter(
-		(value): value is string => Boolean(value)
-	);
-
-	return parts.join(" | ");
-}
-
-function appendYamlValue(lines: string[], key: string, value: string | undefined): void {
-	if (!value) {
-		return;
-	}
-
-	lines.push(`${key}: ${yamlString(value)}`);
-}
-
-function yamlString(value: string): string {
-	return JSON.stringify(value);
-}
-
-function parseTags(value: string): string[] {
-	const seen = new Set<string>();
-	const tags: string[] = [];
-
-	for (const rawTag of value.split(/[,\n]/)) {
-		const tag = rawTag.trim().replace(/^#/, "");
-
-		if (tag && !seen.has(tag)) {
-			seen.add(tag);
-			tags.push(tag);
-		}
-	}
-
-	return tags;
 }
 
 function sanitizeObsidianFileName(value: string): string {

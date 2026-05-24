@@ -19,6 +19,7 @@ export interface StarredNewsSyncSettings {
 	feedlyStreamId: string;
 	outputFolder: string;
 	importLimit: number;
+	noteTemplatePath: string;
 	includeArticleContent: boolean;
 	fetchArticleSource: boolean;
 	articleSourceMode: ArticleSourceMode;

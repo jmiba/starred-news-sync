@@ -1,6 +1,6 @@
 {
 	"name": "starred-news-sync",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"description": "Import starred RSS reader items as notes with YAML frontmatter.",
 	"main": "main.js",
 	"type": "module",

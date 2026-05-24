@@ -1,10 +1,14 @@
 # Changelog
+## 0.1.5 - 2026-05-24
+
+- Added optional note templates with Templater support and enhance note writing functionality
 
 ## 0.1.4 - 2026-05-24
 
 - Added opt-in article source fetching with Defuddle extraction, URL validation, response size limits, final sanitization, and source metadata in note frontmatter.
 - Fixed article Markdown formatting so nested paragraphs and headings keep block breaks instead of being collapsed inline.
 - Added an opt-in setting to keep safe remote image links from fetched article pages.
+- Added optional note templates with Templater support and addressable RSS item/content fields.
 
 ## 0.1.3 - 2026-05-24
 

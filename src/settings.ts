@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	feedlyStreamId: "",
 	outputFolder: "Starred news",
 	importLimit: 50,
+	noteTemplatePath: "",
 	includeArticleContent: true,
 	fetchArticleSource: false,
 	articleSourceMode: "missing",
@@ -183,6 +184,18 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 					settings.noteTags = value;
 					await this.plugin.saveSettings();
 				});
+			});
+
+		new Setting(containerEl)
+			.setName("Note template")
+			.setDesc("Optional vault path to a template file; templater can use the injected RSS object when installed.")
+			.addText((text) => {
+				text.setPlaceholder("Template path")
+					.setValue(settings.noteTemplatePath)
+					.onChange(async (value) => {
+						settings.noteTemplatePath = value.trim();
+						await this.plugin.saveSettings();
+					});
 			});
 
 		new Setting(containerEl)

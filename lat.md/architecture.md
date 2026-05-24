@@ -60,6 +60,6 @@ Feedly stream imports are implemented by [[src/readers/feedly.ts#FeedlyClient]].
 
 ## Note writing
 
-Note writing owns vault folder creation, duplicate checks by generated path, YAML frontmatter, Markdown body formatting, and imported filename rules.
+Note writing owns vault folder creation, duplicate checks by generated path, default YAML/Markdown note formatting, optional template rendering, and imported filename rules.
 
-The writer is [[src/note-writer.ts#NoteWriter]]. HTML returned by readers or [[architecture#Article source fetching]] is converted by [[src/utils/html-to-markdown.ts#htmlToMarkdown]], while note filenames use an Obsidian-safe article title followed by ` - RSS ` and a short hash.
+The writer is [[src/note-writer.ts#NoteWriter]]. Template context and fallback note formatting are handled by [[src/template-renderer.ts#buildNoteTemplateContext]], [[src/template-renderer.ts#renderNoteTemplate]], and [[src/template-renderer.ts#formatDefaultNote]]. HTML returned by readers or [[architecture#Article source fetching]] is converted by [[src/utils/html-to-markdown.ts#htmlToMarkdown]], while note filenames use an Obsidian-safe article title followed by ` - RSS ` and a short hash.
