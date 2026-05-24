@@ -5,7 +5,7 @@ Import starred or saved RSS reader items into Obsidian as Markdown notes with YA
 ## Features
 
 - Adds a **Sync starred items now** command and ribbon action.
-- Imports each item once using a stable filename based on article URL or reader item ID.
+- Imports each item once using an Obsidian-safe filename in the form `Article title - RSS shortHash.md`.
 - Creates notes with YAML fields for title, URL, reader, feed, author, published date, import date, and tags.
 - Supports manual sync and optional interval sync while Obsidian is open.
 - Converts returned HTML summaries/content into Markdown and strips unsafe HTML elements and event attributes.

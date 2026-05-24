@@ -50,10 +50,9 @@ export class NoteWriter {
 	}
 
 	private buildNotePath(item: StarredNewsItem, outputFolder: string): string {
-		const datePrefix = (item.publishedAt || new Date().toISOString()).slice(0, 10);
-		const slug = slugify(item.title || item.url || item.id);
 		const hash = shortHash(item.url || item.id).slice(0, 8);
-		const filename = `${datePrefix} ${slug}-${hash}.md`;
+		const title = sanitizeObsidianFileName(item.title || item.url || item.id);
+		const filename = `${title} - RSS ${hash}.md`;
 
 		return outputFolder ? `${outputFolder}/${filename}` : filename;
 	}
@@ -145,16 +144,31 @@ function parseTags(value: string): string[] {
 	return tags;
 }
 
-function slugify(value: string): string {
-	const slug = value
-		.normalize("NFKD")
-		.replace(/[\u0300-\u036f]/g, "")
-		.replace(/[^a-zA-Z0-9]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.toLowerCase()
-		.slice(0, 96);
+function sanitizeObsidianFileName(value: string): string {
+	const sanitized = replaceControlCharacters(value)
+		.replace(/[\\/:*?"<>|]/g, " ")
+		.replace(/\s+/g, " ")
+		.replace(/^\.+/, "")
+		.trim()
+		.slice(0, 180)
+		.trim()
+		.replace(/[. ]+$/, "");
 
-	return slug || "starred-item";
+	return sanitized || "Untitled RSS item";
+}
+
+function replaceControlCharacters(value: string): string {
+	return Array.from(value)
+		.map((character) => {
+			const codePoint = character.codePointAt(0);
+
+			if (codePoint === undefined || codePoint < 32 || codePoint === 127) {
+				return " ";
+			}
+
+			return character;
+		})
+		.join("");
 }
 
 function shortHash(value: string): string {
