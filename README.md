@@ -62,7 +62,7 @@ npm run build
 
 Release tags must exactly match `manifest.json`'s `version` and must not use a leading `v`.
 
-When a matching tag is pushed, or when the release workflow is run manually, GitHub Actions builds the plugin and uploads these required release assets:
+When a GitHub release is published, or when the release workflow is run manually, GitHub Actions builds the plugin and uploads these required release assets:
 
 - `manifest.json`
 - `main.js`

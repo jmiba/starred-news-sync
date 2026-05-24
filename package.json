@@ -1,6 +1,6 @@
 {
 	"name": "starred-news-sync",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"description": "Import starred RSS reader items into Obsidian notes with YAML frontmatter.",
 	"main": "main.js",
 	"type": "module",

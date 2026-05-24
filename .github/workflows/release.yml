@@ -1,9 +1,6 @@
 name: Release
 
 on:
-    push:
-        tags:
-            - "*.*.*"
     release:
         types: [published]
     workflow_dispatch:
@@ -23,11 +20,10 @@ jobs:
             - name: Resolve release tag
               id: release-tag
               env:
-                  PUSH_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
                   RELEASE_TAG: ${{ github.event.release.tag_name || '' }}
                   DISPATCH_TAG: ${{ inputs.tag || '' }}
               run: |
-                  tag="${PUSH_TAG:-${RELEASE_TAG:-$DISPATCH_TAG}}"
+                  tag="${RELEASE_TAG:-$DISPATCH_TAG}"
 
                   if [ -z "$tag" ]; then
                     echo "Unable to resolve release tag." >&2
@@ -46,14 +42,14 @@ jobs:
 
                   echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
               with:
                   ref: ${{ steps.release-tag.outputs.tag }}
 
             - name: Use Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v6
               with:
-                  node-version: 22.x
+                  node-version: 24.x
                   cache: "npm"
 
             - run: npm ci
