@@ -1,0 +1,91 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "*.*.*"
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            tag:
+                description: "Release tag, without a leading v"
+                required: true
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Resolve release tag
+              id: release-tag
+              env:
+                  PUSH_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+                  RELEASE_TAG: ${{ github.event.release.tag_name || '' }}
+                  DISPATCH_TAG: ${{ inputs.tag || '' }}
+              run: |
+                  tag="${PUSH_TAG:-${RELEASE_TAG:-$DISPATCH_TAG}}"
+
+                  if [ -z "$tag" ]; then
+                    echo "Unable to resolve release tag." >&2
+                    exit 1
+                  fi
+
+                  if [[ "$tag" == v* ]]; then
+                    echo "Obsidian plugin release tags must not use a leading v: $tag" >&2
+                    exit 1
+                  fi
+
+                  if [[ ! "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Release tag must use x.y.z semantic version format: $tag" >&2
+                    exit 1
+                  fi
+
+                  echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ steps.release-tag.outputs.tag }}
+
+            - name: Use Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  cache: "npm"
+
+            - run: npm ci
+            - run: npm run build
+
+            - name: Verify release assets
+              env:
+                  RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+              run: |
+                  manifest_version="$(node -p "require('./manifest.json').version")"
+
+                  if [ "$manifest_version" != "$RELEASE_TAG" ]; then
+                    echo "manifest.json version ($manifest_version) must match release tag ($RELEASE_TAG)." >&2
+                    exit 1
+                  fi
+
+                  for asset in manifest.json styles.css main.js; do
+                    if [ ! -s "$asset" ]; then
+                      echo "Required release asset is missing or empty: $asset" >&2
+                      exit 1
+                    fi
+                  done
+
+            - name: Publish release assets
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  RELEASE_TAG: ${{ steps.release-tag.outputs.tag }}
+              run: |
+                  if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+                    gh release upload "$RELEASE_TAG" manifest.json styles.css main.js --clobber
+                  else
+                    gh release create "$RELEASE_TAG" manifest.json styles.css main.js \
+                      --title "$RELEASE_TAG" \
+                      --notes "Release $RELEASE_TAG"
+                  fi
