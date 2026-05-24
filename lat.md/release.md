@@ -12,7 +12,7 @@ The version bump helper is `version-bump.mjs`. The release workflow verifies tha
 
 Each release must attach `manifest.json`, `main.js`, and `styles.css` as separate assets.
 
-The release automation is `.github/workflows/release.yml`. It runs the production build, verifies required assets are present and non-empty, then creates or updates release attachments.
+The release automation is `.github/workflows/release.yml`. It runs the production build, verifies required assets are present and non-empty, generates GitHub artifact attestations for the release assets, then creates or updates release attachments.
 
 ## Validation checks
 
