@@ -1,15 +1,20 @@
 import Defuddle from "defuddle";
-import { requestUrl } from "obsidian";
 import type { StarredNewsItem, StarredNewsSyncSettings } from "./types";
 
 const MAX_ARTICLE_BYTES = 2_000_000;
-const ARTICLE_REQUEST_HEADERS = {
+const ARTICLE_REQUEST_TIMEOUT_MS = 20_000;
+const ARTICLE_REQUEST_HEADERS: Record<string, string> = {
 	Accept: "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.1",
 };
 
 interface ExtractedArticle {
 	html: string;
 	fetchedAt: string;
+}
+
+interface ArticleSourceResponse {
+	text: string;
+	url: string;
 }
 
 interface ExtractReadableHtmlOptions {
@@ -62,28 +67,13 @@ export class ArticleSourceFetcher {
 			return null;
 		}
 
-		await this.verifyContentLength(safeUrl);
+		const response = await fetchArticleSource(safeUrl);
 
-		const response = await requestUrl({
-			url: safeUrl,
-			method: "GET",
-			headers: ARTICLE_REQUEST_HEADERS,
-			throw: false,
-		});
-
-		if (response.status < 200 || response.status >= 300) {
+		if (!response) {
 			return null;
 		}
 
-		if (response.arrayBuffer.byteLength > MAX_ARTICLE_BYTES) {
-			return null;
-		}
-
-		if (!isSupportedContentType(getHeader(response.headers, "content-type"))) {
-			return null;
-		}
-
-		const html = extractReadableHtml(response.text, safeUrl, {
+		const html = extractReadableHtml(response.text, response.url, {
 			includeRemoteImages: this.settings.includeRemoteImages,
 		});
 
@@ -96,25 +86,110 @@ export class ArticleSourceFetcher {
 			fetchedAt: new Date().toISOString(),
 		};
 	}
+}
 
-	private async verifyContentLength(url: string): Promise<void> {
-		try {
-			const response = await requestUrl({
-				url,
-				method: "HEAD",
-				headers: ARTICLE_REQUEST_HEADERS,
-				throw: false,
-			});
-			const contentLength = Number.parseInt(getHeader(response.headers, "content-length") || "", 10);
+async function fetchArticleSource(url: string): Promise<ArticleSourceResponse | null> {
+	// requestUrl buffers full responses; streaming fetch enforces the byte limit while downloading.
+	const streamingFetch = globalThis.fetch;
 
-			if (Number.isFinite(contentLength) && contentLength > MAX_ARTICLE_BYTES) {
+	if (!streamingFetch) {
+		return null;
+	}
+
+	const controller = new AbortController();
+	const timeoutId = window.setTimeout(() => controller.abort(), ARTICLE_REQUEST_TIMEOUT_MS);
+
+	try {
+		const response = await streamingFetch(url, {
+			method: "GET",
+			headers: ARTICLE_REQUEST_HEADERS,
+			redirect: "follow",
+			credentials: "omit",
+			referrerPolicy: "no-referrer",
+			signal: controller.signal,
+		});
+
+		if (!response.ok) {
+			return null;
+		}
+
+		const finalUrl = parseSafeArticleUrl(response.url || url);
+
+		if (!finalUrl) {
+			await response.body?.cancel();
+			return null;
+		}
+
+		const contentLength = parseContentLength(response.headers.get("content-length"));
+
+		if (contentLength !== null && contentLength > MAX_ARTICLE_BYTES) {
+			await response.body?.cancel();
+			return null;
+		}
+
+		if (!isSupportedContentType(response.headers.get("content-type"))) {
+			await response.body?.cancel();
+			return null;
+		}
+
+		const text = await readResponseTextWithLimit(response, controller);
+
+		if (text === null) {
+			return null;
+		}
+
+		return {
+			text,
+			url: finalUrl,
+		};
+	} catch (error) {
+		if (error instanceof Error && error.name === "AbortError") {
+			return null;
+		}
+
+		throw error;
+	} finally {
+		window.clearTimeout(timeoutId);
+	}
+}
+
+async function readResponseTextWithLimit(response: Response, controller: AbortController): Promise<string | null> {
+	if (!response.body) {
+		return null;
+	}
+
+	const reader = response.body.getReader();
+	const decoder = createTextDecoder(response.headers.get("content-type"));
+	let receivedBytes = 0;
+	let text = "";
+
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+
+			if (done) {
+				break;
+			}
+
+			receivedBytes += value.byteLength;
+
+			if (receivedBytes > MAX_ARTICLE_BYTES) {
+				controller.abort();
+				await reader.cancel().catch(() => undefined);
 				throw new Error("Article source is larger than the configured safety limit.");
 			}
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("safety limit")) {
-				throw error;
-			}
+
+			text += decoder.decode(value, { stream: true });
 		}
+
+		text += decoder.decode();
+		return text;
+	} catch (error) {
+		if (error instanceof Error && error.name === "AbortError") {
+			return null;
+		}
+
+		throw error;
 	}
 }
 
@@ -193,6 +268,7 @@ function isBlockedIpv6(host: string): boolean {
 	return (
 		host === "::" ||
 		host === "::1" ||
+		host.startsWith("::ffff:") ||
 		host.startsWith("fc") ||
 		host.startsWith("fd") ||
 		host.startsWith("fe8") ||
@@ -202,7 +278,7 @@ function isBlockedIpv6(host: string): boolean {
 	);
 }
 
-function isSupportedContentType(contentType: string | undefined): boolean {
+function isSupportedContentType(contentType: string | null | undefined): boolean {
 	if (!contentType) {
 		return true;
 	}
@@ -216,11 +292,28 @@ function isSupportedContentType(contentType: string | undefined): boolean {
 	);
 }
 
-function getHeader(headers: Record<string, string>, name: string): string | undefined {
-	const normalizedName = name.toLowerCase();
-	const entry = Object.entries(headers).find(([key]) => key.toLowerCase() === normalizedName);
+function parseContentLength(value: string | null): number | null {
+	if (!value) {
+		return null;
+	}
 
-	return entry?.[1];
+	const contentLength = Number.parseInt(value, 10);
+
+	return Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : null;
+}
+
+function createTextDecoder(contentType: string | null): TextDecoder {
+	try {
+		return new TextDecoder(getCharset(contentType) || "utf-8");
+	} catch {
+		return new TextDecoder();
+	}
+}
+
+function getCharset(contentType: string | null): string | null {
+	const charsetMatch = contentType?.match(/;\s*charset=([^;]+)/i);
+
+	return charsetMatch?.[1]?.trim().replace(/^["']|["']$/g, "") || null;
 }
 
 function extractReadableHtml(source: string, url: string, options: ExtractReadableHtmlOptions): string {

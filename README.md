@@ -47,13 +47,21 @@ Other likely compatible readers include services or servers that expose Google R
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
 - **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or always preferred over reader content.
 - **Include remote images**: Optional. Keeps safe HTTP and HTTPS image links from fetched article pages. Off by default because previewing notes may contact image hosts.
+- **Sync on startup**: Optional. Runs one sync after Obsidian opens and the workspace is ready.
 - **Automatic sync**: Runs sync on an interval while Obsidian is open.
 
 Credentials are stored in this plugin's Obsidian data file. By default, the plugin only sends network requests to the reader API URL you configure.
 
-The plugin always skips an item when its generated note path already exists. When **Skip duplicate links** is enabled, the plugin also scans Markdown frontmatter in the configured **Output folder** for the configured property names before importing. The scan is limited to the output folder and its subfolders, so moved or renamed notes are detected when their configured URL frontmatter remains in that folder tree. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
+The ` - RSS <hash>` filename suffix is still used for newly imported notes so items with the same title but different URLs do not target the same file path. The plugin also stores the same stable hash as `rss_hash` in imported note frontmatter and recognizes the legacy filename suffix for older imports. Existing imports are skipped when that hash is found in the configured **Output folder** and its subfolders, so you can rename imported notes as long as `rss_hash` remains in the note frontmatter. When **Skip duplicate links** is enabled, the plugin also scans Markdown frontmatter in that folder tree for the configured URL property names before importing. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
 
-If **Fetch article source text** is enabled, the plugin also requests article URLs from your starred items and extracts readable content with [Defuddle](https://github.com/kepano/defuddle). It only accepts HTTP and HTTPS URLs, skips localhost/private-network-style hosts, limits article responses to 2 MB, removes scripts/forms/active content/inline event handlers, disables Defuddle's async third-party fallbacks, and converts the extracted HTML to Markdown before writing notes. Remote article images are removed unless **Include remote images** is enabled; when enabled, only safe HTTP and HTTPS image links are kept, and Obsidian may contact those image hosts when rendering notes. This may still disclose your IP address and user agent to article websites.
+For reliable deduplication, keep these frontmatter properties in imported notes:
+
+- `rss_hash`: Required for rename-safe duplicate detection. The plugin adds this automatically, including to custom template output when it is missing.
+- `url`: Required only when **Skip duplicate links** is enabled with the default duplicate URL property. If you configure different duplicate URL properties, keep those properties instead.
+
+Existing notes imported before `rss_hash` was added can still be detected by the legacy ` - RSS <hash>.md` filename suffix until they are renamed. If you rename those older notes, add `rss_hash` first.
+
+If **Fetch article source text** is enabled, the plugin also requests article URLs from your starred items and extracts readable content with [Defuddle](https://github.com/kepano/defuddle). It only accepts HTTP and HTTPS URLs, skips localhost/private-network-style hosts, limits article responses to 2 MB, removes scripts/forms/active content/inline event handlers, disables Defuddle's async third-party fallbacks, and converts the extracted HTML to Markdown before writing notes. Remote article images are removed unless **Include remote images** is enabled; when enabled, only safe HTTP and HTTPS image links are kept, and Obsidian may contact those image hosts when rendering notes. This may still disclose your IP address and user agent to article websites. If you want local copies of remote images, consider using an attachment-localizing Obsidian plugin such as [Local Images Plus](https://community.obsidian.md/plugins/obsidian-local-images-plus).
 
 ## Templates
 
@@ -73,6 +81,7 @@ title: <% JSON.stringify(rss.title) %>
 url: <% JSON.stringify(rss.url) %>
 reader: <% JSON.stringify(rss.reader) %>
 imported: <% JSON.stringify(rss.importedAt) %>
+rss_hash: <% JSON.stringify(rss.shortHash) %>
 tags:
 <%* for (const tag of rss.tags) { tR += `  - ${JSON.stringify(tag)}\n`; } -%>
 ---

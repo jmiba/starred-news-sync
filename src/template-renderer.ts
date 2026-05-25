@@ -1,4 +1,5 @@
 import { App, normalizePath, TFile } from "obsidian";
+import { IMPORT_HASH_FRONTMATTER_PROPERTY } from "./constants";
 import { htmlToMarkdown } from "./utils/html-to-markdown";
 import type { StarredNewsItem, StarredNewsSyncSettings } from "./types";
 
@@ -91,7 +92,7 @@ export function buildNoteTemplateContext(
 		contentSource: item.contentSource || "",
 		contentFetchedAt: item.contentFetchedAt || "",
 	};
-	const frontmatter = buildFrontmatter(item, tags, importedAt);
+	const frontmatter = buildFrontmatter(item, tags, importedAt, identity.shortHash);
 
 	return {
 		...itemFields,
@@ -158,6 +159,27 @@ export function formatDefaultNote(context: NoteTemplateContext): string {
 	return lines.join("\n").replace(/\n{3,}/g, "\n\n");
 }
 
+export function ensureImportHashFrontmatter(markdown: string, shortHash: string): string {
+	const hashLine = `${IMPORT_HASH_FRONTMATTER_PROPERTY}: ${yamlString(shortHash)}`;
+	const lines = markdown.split(/\r?\n/);
+
+	if (lines[0] === "---") {
+		const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
+
+		if (closingIndex > 0) {
+			const frontmatterLines = lines.slice(1, closingIndex);
+
+			if (frontmatterLines.some((line) => line.match(new RegExp(`^\\s*${IMPORT_HASH_FRONTMATTER_PROPERTY}\\s*:`)))) {
+				return markdown;
+			}
+
+			return [...lines.slice(0, closingIndex), hashLine, ...lines.slice(closingIndex)].join("\n");
+		}
+	}
+
+	return ["---", hashLine, "---", "", markdown].join("\n");
+}
+
 export async function renderNoteTemplate(
 	app: App,
 	templateFile: TFile,
@@ -209,7 +231,8 @@ export function resolveTemplateFile(app: App, rawPath: string): TFile | null {
 function buildFrontmatter(
 	item: StarredNewsItem,
 	tags: string[],
-	importedAt: string
+	importedAt: string,
+	shortHash: string
 ): Record<string, string | string[]> {
 	const frontmatter: Record<string, string | string[]> = {
 		title: item.title,
@@ -217,6 +240,7 @@ function buildFrontmatter(
 		reader: item.reader,
 		reader_item_id: item.id,
 		imported: importedAt,
+		[IMPORT_HASH_FRONTMATTER_PROPERTY]: shortHash,
 	};
 
 	appendFrontmatterValue(frontmatter, "author", item.author);

@@ -1,4 +1,11 @@
 # Changelog
+## 0.1.8 - 2026-05-25
+
+- Added an optional startup sync setting that runs once after Obsidian opens.
+- Added stable `rss_hash` duplicate detection so imported notes can be renamed without being imported again.
+- Tightened article source fetching with streaming response size limits, request timeouts, and redirected URL validation.
+- Documented Local Images Plus as an option for localizing remote article images.
+
 ## 0.1.7 - 2026-05-25
 
 - Duplicate URL handling is now limited to checks to the output folder and its subfolders instead of the entire vault.

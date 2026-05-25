@@ -27,6 +27,7 @@ export interface StarredNewsSyncSettings {
 	articleSourceMode: ArticleSourceMode;
 	includeRemoteImages: boolean;
 	noteTags: string;
+	syncOnStartup: boolean;
 	autoSync: boolean;
 	syncIntervalMinutes: number;
 }

@@ -1,7 +1,9 @@
 import { App, normalizePath, TFile } from "obsidian";
+import { DuplicateHashIndex } from "./duplicate-hash-index";
 import { DuplicateUrlIndex } from "./duplicate-url-index";
 import {
 	buildNoteTemplateContext,
+	ensureImportHashFrontmatter,
 	formatDefaultNote,
 	renderNoteTemplate,
 	resolveTemplateFile,
@@ -24,6 +26,7 @@ export class NoteWriter {
 		const outputFolder = settings.outputFolder.trim() ? normalizePath(settings.outputFolder.trim()) : "";
 		const templatePath = settings.noteTemplatePath.trim();
 		const templateFile = templatePath ? resolveTemplateFile(this.app, templatePath) : null;
+		const duplicateHashIndex = await DuplicateHashIndex.fromOutputFolder(this.app, outputFolder);
 		const duplicateUrlIndex = DuplicateUrlIndex.fromSettings(this.app, settings);
 		const createdPaths: string[] = [];
 		let imported = 0;
@@ -40,7 +43,8 @@ export class NoteWriter {
 		for (const item of items) {
 			const identity = this.buildNoteIdentity(item, outputFolder);
 
-			if (await this.app.vault.adapter.exists(identity.path)) {
+			if (duplicateHashIndex.has(identity.shortHash) || (await this.app.vault.adapter.exists(identity.path))) {
+				duplicateHashIndex.add(identity.shortHash);
 				duplicateUrlIndex?.add(item.url);
 				skipped++;
 				continue;
@@ -60,7 +64,10 @@ export class NoteWriter {
 				const targetFile = await this.app.vault.create(identity.path, defaultNote);
 
 				try {
-					const renderedNote = await renderNoteTemplate(this.app, templateFile, targetFile, context);
+					const renderedNote = ensureImportHashFrontmatter(
+						await renderNoteTemplate(this.app, templateFile, targetFile, context),
+						identity.shortHash
+					);
 					await this.app.vault.modify(targetFile, renderedNote);
 				} catch (error) {
 					await this.trashPartialNote(targetFile);
@@ -71,6 +78,7 @@ export class NoteWriter {
 			}
 
 			createdPaths.push(identity.path);
+			duplicateHashIndex.add(identity.shortHash);
 			duplicateUrlIndex?.add(itemToWrite.url);
 			imported++;
 		}

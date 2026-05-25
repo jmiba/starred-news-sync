@@ -21,6 +21,7 @@ export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	articleSourceMode: "missing",
 	includeRemoteImages: false,
 	noteTags: "rss-starred, news",
+	syncOnStartup: false,
 	autoSync: false,
 	syncIntervalMinutes: 60,
 };
@@ -273,6 +274,16 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 		}
 
 		new Setting(containerEl).setName("Sync").setHeading();
+
+		new Setting(containerEl)
+			.setName("Sync on startup")
+			.setDesc("Run one sync after Obsidian opens and the workspace is ready.")
+			.addToggle((toggle) => {
+				toggle.setValue(settings.syncOnStartup).onChange(async (value) => {
+					settings.syncOnStartup = value;
+					await this.plugin.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("Automatic sync")

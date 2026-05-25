@@ -25,6 +25,7 @@ export default class StarredNewsSyncPlugin extends Plugin {
 
 		this.addSettingTab(new StarredNewsSettingTab(this.app, this));
 		this.configureAutoSync();
+		this.configureStartupSync();
 	}
 
 	onunload(): void {
@@ -55,6 +56,16 @@ export default class StarredNewsSyncPlugin extends Plugin {
 			void this.syncStarredItems({ silent: true });
 		}, intervalMinutes * 60 * 1000);
 		this.registerInterval(this.autoSyncIntervalId);
+	}
+
+	private configureStartupSync(): void {
+		if (!this.settings.syncOnStartup) {
+			return;
+		}
+
+		this.app.workspace.onLayoutReady(() => {
+			void this.syncStarredItems({ silent: true });
+		});
 	}
 
 	async syncStarredItems(options: { silent?: boolean } = {}): Promise<void> {
