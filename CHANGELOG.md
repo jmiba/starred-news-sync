@@ -1,4 +1,8 @@
 # Changelog
+## 0.1.7
+
+- Duplicate URL handling is now limited to checks to the output folder and its subfolders instead of the entire vault.
+
 ## 0.1.6 - 2026-05-25
 
 - Added optional duplicate detection by comparing RSS item URLs with configurable YAML frontmatter fields.

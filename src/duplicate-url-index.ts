@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import { normalizePath, TFile, TFolder, type App } from "obsidian";
 import type { StarredNewsSyncSettings } from "./types";
 
 type FrontmatterRecord = Record<string, unknown>;
@@ -8,7 +8,8 @@ export class DuplicateUrlIndex {
 
 	private constructor(
 		private readonly app: App,
-		private readonly frontmatterProperties: string[]
+		private readonly frontmatterProperties: string[],
+		private readonly outputFolder: string
 	) {
 		this.build();
 	}
@@ -24,7 +25,13 @@ export class DuplicateUrlIndex {
 			return null;
 		}
 
-		return new DuplicateUrlIndex(app, frontmatterProperties);
+		const outputFolder = settings.outputFolder.trim() ? normalizePath(settings.outputFolder.trim()) : "";
+
+		if (!outputFolder) {
+			return null;
+		}
+
+		return new DuplicateUrlIndex(app, frontmatterProperties, outputFolder);
 	}
 
 	has(url: string): boolean {
@@ -42,17 +49,33 @@ export class DuplicateUrlIndex {
 	}
 
 	private build(): void {
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		const folder = this.app.vault.getAbstractFileByPath(this.outputFolder);
 
-			if (!isFrontmatterRecord(frontmatter)) {
-				continue;
+		if (folder instanceof TFolder) {
+			this.indexFolder(folder);
+		}
+	}
+
+	private indexFolder(folder: TFolder): void {
+		for (const child of folder.children) {
+			if (child instanceof TFolder) {
+				this.indexFolder(child);
+			} else if (child instanceof TFile && child.extension.toLowerCase() === "md") {
+				this.indexFile(child);
 			}
+		}
+	}
 
-			for (const property of this.frontmatterProperties) {
-				for (const value of collectStringValues(readFrontmatterValue(frontmatter, property))) {
-					this.add(value);
-				}
+	private indexFile(file: TFile): void {
+		const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+
+		if (!isFrontmatterRecord(frontmatter)) {
+			return;
+		}
+
+		for (const property of this.frontmatterProperties) {
+			for (const value of collectStringValues(readFrontmatterValue(frontmatter, property))) {
+				this.add(value);
 			}
 		}
 	}

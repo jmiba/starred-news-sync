@@ -41,7 +41,7 @@ Other likely compatible readers include services or servers that expose Google R
 - **Access token**: Used by Feedly, Miniflux, OAuth-based Inoreader, or precomputed GoogleLogin/Fever tokens.
 - **Output folder**: Destination folder in the vault.
 - **Note tags**: Comma-separated YAML tags added to imported notes.
-- **Skip duplicate links**: Optional. Skips reader items whose URL already appears in configured YAML frontmatter fields anywhere in the vault.
+- **Skip duplicate links**: Optional. Skips reader items whose URL already appears in configured YAML frontmatter fields inside the output folder.
 - **Duplicate URL property**: YAML frontmatter property compared with incoming item URLs. Defaults to `url`; comma-separated legacy names are supported.
 - **Note template**: Optional vault path to a Markdown template. If Templater is installed, Templater commands are rendered with the imported RSS item injected as `rss`.
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
@@ -51,7 +51,7 @@ Other likely compatible readers include services or servers that expose Google R
 
 Credentials are stored in this plugin's Obsidian data file. By default, the plugin only sends network requests to the reader API URL you configure.
 
-When **Skip duplicate links** is enabled, the plugin uses Obsidian's metadata cache to scan Markdown frontmatter for the configured property names before importing. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
+When **Skip duplicate links** is enabled, the plugin scans Markdown frontmatter in the configured **Output folder** for the configured property names before importing. The scan is limited to the output folder and its subfolders. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
 
 If **Fetch article source text** is enabled, the plugin also requests article URLs from your starred items and extracts readable content with [Defuddle](https://github.com/kepano/defuddle). It only accepts HTTP and HTTPS URLs, skips localhost/private-network-style hosts, limits article responses to 2 MB, removes scripts/forms/active content/inline event handlers, disables Defuddle's async third-party fallbacks, and converts the extracted HTML to Markdown before writing notes. Remote article images are removed unless **Include remote images** is enabled; when enabled, only safe HTTP and HTTPS image links are kept, and Obsidian may contact those image hosts when rendering notes. This may still disclose your IP address and user agent to article websites.
 
