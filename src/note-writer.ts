@@ -1,4 +1,5 @@
 import { App, normalizePath, TFile } from "obsidian";
+import { DuplicateUrlIndex } from "./duplicate-url-index";
 import {
 	buildNoteTemplateContext,
 	formatDefaultNote,
@@ -23,6 +24,7 @@ export class NoteWriter {
 		const outputFolder = settings.outputFolder.trim() ? normalizePath(settings.outputFolder.trim()) : "";
 		const templatePath = settings.noteTemplatePath.trim();
 		const templateFile = templatePath ? resolveTemplateFile(this.app, templatePath) : null;
+		const duplicateUrlIndex = DuplicateUrlIndex.fromSettings(this.app, settings);
 		const createdPaths: string[] = [];
 		let imported = 0;
 		let skipped = 0;
@@ -39,6 +41,12 @@ export class NoteWriter {
 			const identity = this.buildNoteIdentity(item, outputFolder);
 
 			if (await this.app.vault.adapter.exists(identity.path)) {
+				duplicateUrlIndex?.add(item.url);
+				skipped++;
+				continue;
+			}
+
+			if (duplicateUrlIndex?.has(item.url)) {
 				skipped++;
 				continue;
 			}
@@ -63,6 +71,7 @@ export class NoteWriter {
 			}
 
 			createdPaths.push(identity.path);
+			duplicateUrlIndex?.add(itemToWrite.url);
 			imported++;
 		}
 

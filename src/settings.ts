@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	feedlyStreamId: "",
 	outputFolder: "Starred news",
 	importLimit: 50,
+	detectDuplicateUrls: false,
+	duplicateUrlFrontmatterProperty: "url",
 	noteTemplatePath: "",
 	includeArticleContent: true,
 	fetchArticleSource: false,
@@ -185,6 +187,30 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
+
+		new Setting(containerEl)
+			.setName("Skip duplicate links")
+			.setDesc("Skip reader items whose link already appears in YAML frontmatter in the vault.")
+			.addToggle((toggle) => {
+				toggle.setValue(settings.detectDuplicateUrls).onChange(async (value) => {
+					settings.detectDuplicateUrls = value;
+					await this.saveAndRefresh();
+				});
+			});
+
+		if (settings.detectDuplicateUrls) {
+			new Setting(containerEl)
+				.setName("Duplicate URL property")
+				.setDesc("YAML frontmatter property compared with RSS item links. Use commas for multiple legacy names.")
+				.addText((text) => {
+					text.setPlaceholder(DEFAULT_SETTINGS.duplicateUrlFrontmatterProperty)
+						.setValue(settings.duplicateUrlFrontmatterProperty)
+						.onChange(async (value) => {
+							settings.duplicateUrlFrontmatterProperty = value.trim();
+							await this.plugin.saveSettings();
+						});
+				});
+		}
 
 		new Setting(containerEl)
 			.setName("Note template")

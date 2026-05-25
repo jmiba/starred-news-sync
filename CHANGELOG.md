@@ -1,4 +1,8 @@
 # Changelog
+## 0.1.6 - 2026-05-25
+
+- Added optional duplicate detection by comparing RSS item URLs with configurable YAML frontmatter fields.
+
 ## 0.1.5 - 2026-05-24
 
 - Added optional note templates with Templater support and enhance note writing functionality

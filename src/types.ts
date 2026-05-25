@@ -19,6 +19,8 @@ export interface StarredNewsSyncSettings {
 	feedlyStreamId: string;
 	outputFolder: string;
 	importLimit: number;
+	detectDuplicateUrls: boolean;
+	duplicateUrlFrontmatterProperty: string;
 	noteTemplatePath: string;
 	includeArticleContent: boolean;
 	fetchArticleSource: boolean;
