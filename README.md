@@ -51,7 +51,7 @@ Other likely compatible readers include services or servers that expose Google R
 
 Credentials are stored in this plugin's Obsidian data file. By default, the plugin only sends network requests to the reader API URL you configure.
 
-When **Skip duplicate links** is enabled, the plugin scans Markdown frontmatter in the configured **Output folder** for the configured property names before importing. The scan is limited to the output folder and its subfolders. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
+The plugin always skips an item when its generated note path already exists. When **Skip duplicate links** is enabled, the plugin also scans Markdown frontmatter in the configured **Output folder** for the configured property names before importing. The scan is limited to the output folder and its subfolders, so moved or renamed notes are detected when their configured URL frontmatter remains in that folder tree. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
 
 If **Fetch article source text** is enabled, the plugin also requests article URLs from your starred items and extracts readable content with [Defuddle](https://github.com/kepano/defuddle). It only accepts HTTP and HTTPS URLs, skips localhost/private-network-style hosts, limits article responses to 2 MB, removes scripts/forms/active content/inline event handlers, disables Defuddle's async third-party fallbacks, and converts the extracted HTML to Markdown before writing notes. Remote article images are removed unless **Include remote images** is enabled; when enabled, only safe HTTP and HTTPS image links are kept, and Obsidian may contact those image hosts when rendering notes. This may still disclose your IP address and user agent to article websites.
 
@@ -87,7 +87,7 @@ tags:
 
 If Templater is not installed, the plugin still replaces simple placeholders such as `{{rss.title}}`, `{{rss.contentMarkdown}}`, and `{{content.markdown}}`. Templater JavaScript blocks only run when Templater is installed. Use templates you trust, because Templater templates can execute JavaScript.
 
-Avoid moving or renaming the imported note from inside a template if you rely on duplicate detection, because existing imports are detected by the generated note path.
+If you want to perform additional AI processing of the imported news items (e.g. automatic tagging, abstract writing etc.), consider using the [AI for Templater](https://community.obsidian.md/plugins/ai-templater) plugin.
 
 ## Development
 
