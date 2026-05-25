@@ -1,5 +1,5 @@
 # Changelog
-## 0.1.7
+## 0.1.7 - 2026-05-25
 
 - Duplicate URL handling is now limited to checks to the output folder and its subfolders instead of the entire vault.
 
