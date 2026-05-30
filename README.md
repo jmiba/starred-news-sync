@@ -45,7 +45,7 @@ Other likely compatible readers include services or servers that expose Google R
 - **Duplicate URL property**: YAML frontmatter property compared with incoming item URLs. Defaults to `url`; comma-separated legacy names are supported.
 - **Note template**: Optional vault path to a Markdown template. If Templater is installed, Templater commands are rendered with the imported RSS item injected as `rss`.
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
-- **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or always preferred over reader content.
+- **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or blank, or always preferred over reader content.
 - **Include remote images**: Optional. Keeps safe HTTP and HTTPS image links from fetched article pages. Off by default because previewing notes may contact image hosts.
 - **Sync on startup**: Optional. Runs one sync after Obsidian opens and the workspace is ready.
 - **Automatic sync**: Runs sync on an interval while Obsidian is open.
@@ -72,6 +72,99 @@ Set **Note template** to a vault path such as `Templates/Starred news item`. Wik
 - `content`: alias for `rss.content`, containing selected HTML/Markdown content fields.
 
 Common fields include `rss.title`, `rss.url`, `rss.reader`, `rss.author`, `rss.feedTitle`, `rss.feedUrl`, `rss.publishedAt`, `rss.updatedAt`, `rss.importedAt`, `rss.tags`, `rss.notePath`, `rss.fileName`, `rss.shortHash`, `rss.byline`, `rss.contentHtml`, `rss.summaryHtml`, `rss.selectedContentHtml`, `rss.contentMarkdown`, `rss.summaryMarkdown`, `rss.contentSource`, and `rss.contentFetchedAt`. The default YAML fields are also available as `rss.frontmatter`.
+
+Sample `rss` object with representative values:
+
+```json
+{
+  "id": "tag:example.com,2026:starred/12345",
+  "title": "Shipping small plugins without breaking your vault",
+  "url": "https://example.com/posts/shipping-small-plugins",
+  "reader": "miniflux",
+  "author": "Casey Example",
+  "feedTitle": "Example Engineering",
+  "feedUrl": "https://example.com/feed.xml",
+  "publishedAt": "2026-05-24T08:30:00.000Z",
+  "updatedAt": "2026-05-24T09:10:00.000Z",
+  "contentHtml": "<p>Full article body.</p><p>It has several paragraphs.</p>",
+  "summaryHtml": "<p>Short reader summary.</p>",
+  "contentSource": "article_url",
+  "contentFetchedAt": "2026-05-30T11:42:13.000Z",
+  "importedAt": "2026-05-30T11:42:14.000Z",
+  "tags": ["rss", "starred"],
+  "notePath": "News/Shipping small plugins without breaking your vault - RSS a1b2c3d4.md",
+  "fileName": "Shipping small plugins without breaking your vault - RSS a1b2c3d4.md",
+  "shortHash": "a1b2c3d4",
+  "byline": "Example Engineering | Casey Example | 2026-05-24",
+  "selectedContentHtml": "<p>Full article body.</p><p>It has several paragraphs.</p>",
+  "contentMarkdown": "Full article body.\n\nIt has several paragraphs.",
+  "summaryMarkdown": "Short reader summary.",
+  "content": {
+    "html": "<p>Full article body.</p><p>It has several paragraphs.</p>",
+    "markdown": "Full article body.\n\nIt has several paragraphs.",
+    "readerHtml": "<p>Full article body.</p><p>It has several paragraphs.</p>",
+    "summaryHtml": "<p>Short reader summary.</p>",
+    "summaryMarkdown": "Short reader summary.",
+    "source": "article_url",
+    "fetchedAt": "2026-05-30T11:42:13.000Z"
+  },
+  "item": {
+    "id": "tag:example.com,2026:starred/12345",
+    "title": "Shipping small plugins without breaking your vault",
+    "url": "https://example.com/posts/shipping-small-plugins",
+    "reader": "miniflux",
+    "author": "Casey Example",
+    "feedTitle": "Example Engineering",
+    "feedUrl": "https://example.com/feed.xml",
+    "publishedAt": "2026-05-24T08:30:00.000Z",
+    "updatedAt": "2026-05-24T09:10:00.000Z",
+    "contentHtml": "<p>Full article body.</p><p>It has several paragraphs.</p>",
+    "summaryHtml": "<p>Short reader summary.</p>",
+    "contentSource": "article_url",
+    "contentFetchedAt": "2026-05-30T11:42:13.000Z"
+  },
+  "frontmatter": {
+    "title": "Shipping small plugins without breaking your vault",
+    "url": "https://example.com/posts/shipping-small-plugins",
+    "reader": "miniflux",
+    "reader_item_id": "tag:example.com,2026:starred/12345",
+    "imported": "2026-05-30T11:42:14.000Z",
+    "rss_hash": "a1b2c3d4",
+    "author": "Casey Example",
+    "feed": "Example Engineering",
+    "feed_url": "https://example.com/feed.xml",
+    "published": "2026-05-24T08:30:00.000Z",
+    "updated": "2026-05-24T09:10:00.000Z",
+    "content_source": "article_url",
+    "content_fetched_at": "2026-05-30T11:42:13.000Z",
+    "tags": ["rss", "starred"]
+  }
+}
+```
+
+Using the sample object above, these template markers render to these values:
+
+- `{{rss.title}}` -> `Shipping small plugins without breaking your vault`
+- `{{rss.summaryMarkdown}}` -> `Short reader summary.`
+- `{{rss.contentMarkdown}}` -> `Full article body.` followed by `It has several paragraphs.`
+- `{{item.feedTitle}}` -> `Example Engineering`
+- `{{content.markdown}}` -> same value as `{{rss.contentMarkdown}}`
+- `{{content.summaryMarkdown}}` -> same value as `{{rss.summaryMarkdown}}`
+
+`summaryMarkdown` and `contentMarkdown` are intentionally different fields. `summaryMarkdown` always comes from the reader-provided summary. `contentMarkdown` comes from the content selected for the note body, which is either full article content or the summary when full article content is unavailable or disabled. That means the two fields are identical only when the reader exposes no separate full content, or when the selected note content falls back to the summary.
+
+Typical reader field coverage:
+
+| Reader | `author` | `feedTitle` / `feedUrl` | `publishedAt` | `updatedAt` | `contentHtml` | `summaryHtml` | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Google Reader-compatible | Usually | Usually | Usually | Usually | Sometimes | Sometimes | Depends on what the server exposes in `content` and `summary`. |
+| Inoreader | Usually | Usually | Usually | Usually | Sometimes | Sometimes | Uses the Google Reader-compatible mapping. |
+| Feedly | Usually | Usually | Usually | Usually | Sometimes | Sometimes | Often provides both full content and summary, but not for every entry. |
+| Tiny Tiny RSS | Usually | Usually | Usually | No | Usually | Sometimes | `summaryHtml` comes from TT-RSS `excerpt`. |
+| Fever API | Sometimes | Usually | Usually | No | Usually | No | No separate summary field is currently mapped. |
+| Miniflux | Sometimes | Usually | Usually | Usually | Usually | No | No separate summary field is currently mapped. |
+
+`Usually` and `Sometimes` reflect both the upstream API and the specific item. A reader may omit fields for some entries even when it supports them in general. If **Fetch article source text** is enabled, `contentHtml`, `contentMarkdown`, `contentSource`, and `contentFetchedAt` can also change after the initial reader import because the plugin may replace reader content with extracted article content.
 
 Example template:
 

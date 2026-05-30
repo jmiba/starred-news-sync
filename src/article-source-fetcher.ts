@@ -57,7 +57,7 @@ export class ArticleSourceFetcher {
 			return true;
 		}
 
-		return !item.contentHtml;
+		return !hasMeaningfulContent(item.contentHtml);
 	}
 
 	private async fetchArticle(url: string): Promise<ExtractedArticle | null> {
@@ -86,6 +86,10 @@ export class ArticleSourceFetcher {
 			fetchedAt: new Date().toISOString(),
 		};
 	}
+}
+
+function hasMeaningfulContent(value: string | undefined): boolean {
+	return Boolean(value?.trim());
 }
 
 async function fetchArticleSource(url: string): Promise<ArticleSourceResponse | null> {

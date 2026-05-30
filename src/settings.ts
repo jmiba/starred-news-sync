@@ -252,7 +252,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 					.setDesc("Choose whether reader API content or article page content should be preferred.")
 					.addDropdown((dropdown) => {
 						dropdown
-							.addOption("missing", "When reader content is missing")
+							.addOption("missing", "When reader content is missing or blank")
 							.addOption("always", "Always prefer article page")
 							.setValue(settings.articleSourceMode)
 							.onChange(async (value) => {
