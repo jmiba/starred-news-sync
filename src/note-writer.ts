@@ -1,8 +1,10 @@
 import { App, normalizePath, TFile } from "obsidian";
 import { DuplicateHashIndex } from "./duplicate-hash-index";
 import { DuplicateUrlIndex } from "./duplicate-url-index";
+import { logDebug } from "./debug-log";
 import {
 	buildNoteTemplateContext,
+	appendDebugView,
 	ensureImportHashFrontmatter,
 	formatDefaultNote,
 	renderNoteTemplate,
@@ -44,6 +46,10 @@ export class NoteWriter {
 			const identity = this.buildNoteIdentity(item, outputFolder);
 
 			if (duplicateHashIndex.has(identity.shortHash) || (await this.app.vault.adapter.exists(identity.path))) {
+				logDebug(settings, item, "Import skipped before article fetch because the note already exists.", {
+					path: identity.path,
+					shortHash: identity.shortHash,
+				});
 				duplicateHashIndex.add(identity.shortHash);
 				duplicateUrlIndex?.add(item.url);
 				skipped++;
@@ -51,6 +57,9 @@ export class NoteWriter {
 			}
 
 			if (duplicateUrlIndex?.has(item.url)) {
+				logDebug(settings, item, "Import skipped before article fetch because the URL matched an existing note.", {
+					path: identity.path,
+				});
 				skipped++;
 				continue;
 			}
@@ -58,15 +67,19 @@ export class NoteWriter {
 			const itemToWrite = options.beforeWrite ? await options.beforeWrite(item) : item;
 			const importedAt = new Date().toISOString();
 			const context = buildNoteTemplateContext(itemToWrite, settings, identity, importedAt);
-			const defaultNote = formatDefaultNote(context);
+			const defaultNote = appendDebugView(formatDefaultNote(context), context, settings);
 
 			if (templateFile) {
 				const targetFile = await this.app.vault.create(identity.path, defaultNote);
 
 				try {
-					const renderedNote = ensureImportHashFrontmatter(
-						await renderNoteTemplate(this.app, templateFile, targetFile, context),
-						identity.shortHash
+					const renderedNote = appendDebugView(
+						ensureImportHashFrontmatter(
+							await renderNoteTemplate(this.app, templateFile, targetFile, context),
+							identity.shortHash
+						),
+						context,
+						settings
 					);
 					await this.app.vault.modify(targetFile, renderedNote);
 				} catch (error) {

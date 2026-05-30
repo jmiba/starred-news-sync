@@ -1,4 +1,11 @@
 # Changelog
+## 0.1.9 - 2026-05-30
+
+- Switched article source fetching to Obsidian's non-CORS request API so article enrichment can work against sites that block browser-style cross-origin fetches.
+- Treat blank reader content as missing when source fetch mode is set to fetch only when reader content is missing.
+- Added optional debug view and debug logging settings to inspect normalized imported item data and per-item article fetch decisions.
+- Expanded the template documentation with a sample `rss` object, field behavior notes, and a reader coverage matrix for summary and content fields.
+
 ## 0.1.8 - 2026-05-25
 
 - Added an optional startup sync setting that runs once after Obsidian opens.

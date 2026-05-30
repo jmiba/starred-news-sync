@@ -1,4 +1,6 @@
+import { requestUrl } from "obsidian";
 import Defuddle from "defuddle";
+import { logDebug } from "./debug-log";
 import type { StarredNewsItem, StarredNewsSyncSettings } from "./types";
 
 const MAX_ARTICLE_BYTES = 2_000_000;
@@ -21,20 +23,44 @@ interface ExtractReadableHtmlOptions {
 	includeRemoteImages: boolean;
 }
 
+type ArticleFetchDecision =
+	| { shouldFetch: true; reason: string }
+	| { shouldFetch: false; reason: string };
+
+type ArticleFetchResult =
+	| { ok: true; article: ExtractedArticle }
+	| { ok: false; reason: string };
+
+type ArticleSourceResponseResult =
+	| { ok: true; response: ArticleSourceResponse }
+	| { ok: false; reason: string };
+
 export class ArticleSourceFetcher {
 	constructor(private readonly settings: StarredNewsSyncSettings) {}
 
 	async enrichItem(item: StarredNewsItem): Promise<StarredNewsItem> {
-		if (!this.shouldFetch(item)) {
+		const decision = this.getFetchDecision(item);
+
+		if (!decision.shouldFetch) {
+			logDebug(this.settings, item, `Article fetch skipped: ${decision.reason}`);
 			return item;
 		}
 
-		try {
-			const article = await this.fetchArticle(item.url);
+		logDebug(this.settings, item, `Article fetch started: ${decision.reason}`);
 
-			if (!article) {
+		try {
+			const result = await this.fetchArticle(item.url);
+
+			if (!result.ok) {
+				logDebug(this.settings, item, `Article fetch failed: ${result.reason}`);
 				return item;
 			}
+
+			const article = result.article;
+			logDebug(this.settings, item, "Article fetch succeeded.", {
+				contentLength: article.html.length,
+				fetchedAt: article.fetchedAt,
+			});
 
 			return {
 				...item,
@@ -43,47 +69,65 @@ export class ArticleSourceFetcher {
 				contentFetchedAt: article.fetchedAt,
 			};
 		} catch (error) {
+			logDebug(this.settings, item, "Article fetch failed with an unexpected error.", {
+				error: error instanceof Error ? error.message : String(error),
+			});
 			console.warn(`Unable to fetch article source for ${item.url}`, error);
 			return item;
 		}
 	}
 
-	private shouldFetch(item: StarredNewsItem): boolean {
+	private getFetchDecision(item: StarredNewsItem): ArticleFetchDecision {
 		if (!this.settings.includeArticleContent || !this.settings.fetchArticleSource || !item.url) {
-			return false;
+			if (!this.settings.includeArticleContent) {
+				return { shouldFetch: false, reason: "include article content is disabled" };
+			}
+
+			if (!this.settings.fetchArticleSource) {
+				return { shouldFetch: false, reason: "fetch article source text is disabled" };
+			}
+
+			return { shouldFetch: false, reason: "item URL is empty" };
 		}
 
 		if (this.settings.articleSourceMode === "always") {
-			return true;
+			return { shouldFetch: true, reason: "source fetch mode is always" };
 		}
 
-		return !hasMeaningfulContent(item.contentHtml);
+		if (hasMeaningfulContent(item.contentHtml)) {
+			return { shouldFetch: false, reason: "reader content is already present" };
+		}
+
+		return { shouldFetch: true, reason: "reader content is missing or blank" };
 	}
 
-	private async fetchArticle(url: string): Promise<ExtractedArticle | null> {
+	private async fetchArticle(url: string): Promise<ArticleFetchResult> {
 		const safeUrl = parseSafeArticleUrl(url);
 
 		if (!safeUrl) {
-			return null;
+			return { ok: false, reason: "URL is not a safe HTTP or HTTPS article URL" };
 		}
 
 		const response = await fetchArticleSource(safeUrl);
 
-		if (!response) {
-			return null;
+		if (!response.ok) {
+			return { ok: false, reason: response.reason };
 		}
 
-		const html = extractReadableHtml(response.text, response.url, {
+		const html = extractReadableHtml(response.response.text, response.response.url, {
 			includeRemoteImages: this.settings.includeRemoteImages,
 		});
 
 		if (!html) {
-			return null;
+			return { ok: false, reason: "readable article extraction returned no content" };
 		}
 
 		return {
-			html,
-			fetchedAt: new Date().toISOString(),
+			ok: true,
+			article: {
+				html,
+				fetchedAt: new Date().toISOString(),
+			},
 		};
 	}
 }
@@ -92,109 +136,61 @@ function hasMeaningfulContent(value: string | undefined): boolean {
 	return Boolean(value?.trim());
 }
 
-async function fetchArticleSource(url: string): Promise<ArticleSourceResponse | null> {
-	// requestUrl buffers full responses; streaming fetch enforces the byte limit while downloading.
-	const streamingFetch = globalThis.fetch;
-
-	if (!streamingFetch) {
-		return null;
-	}
-
-	const controller = new AbortController();
-	const timeoutId = window.setTimeout(() => controller.abort(), ARTICLE_REQUEST_TIMEOUT_MS);
+async function fetchArticleSource(url: string): Promise<ArticleSourceResponseResult> {
+	const response = await requestUrlWithTimeout({
+		url,
+		method: "GET",
+		headers: ARTICLE_REQUEST_HEADERS,
+		throw: false,
+	});
 
 	try {
-		const response = await streamingFetch(url, {
-			method: "GET",
-			headers: ARTICLE_REQUEST_HEADERS,
-			redirect: "follow",
-			credentials: "omit",
-			referrerPolicy: "no-referrer",
-			signal: controller.signal,
-		});
-
-		if (!response.ok) {
-			return null;
+		if (response.status >= 400) {
+			return { ok: false, reason: `request returned HTTP ${response.status}` };
 		}
 
-		const finalUrl = parseSafeArticleUrl(response.url || url);
-
-		if (!finalUrl) {
-			await response.body?.cancel();
-			return null;
-		}
-
-		const contentLength = parseContentLength(response.headers.get("content-length"));
+		const contentLength = parseContentLength(response.headers["content-length"] ?? null);
 
 		if (contentLength !== null && contentLength > MAX_ARTICLE_BYTES) {
-			await response.body?.cancel();
-			return null;
+			return { ok: false, reason: "response exceeded the configured size limit" };
 		}
 
-		if (!isSupportedContentType(response.headers.get("content-type"))) {
-			await response.body?.cancel();
-			return null;
+		if (!isSupportedContentType(response.headers["content-type"])) {
+			return { ok: false, reason: "response content type is not supported" };
 		}
 
-		const text = await readResponseTextWithLimit(response, controller);
+		const text = response.text;
+		const textBytes = new TextEncoder().encode(text).byteLength;
 
-		if (text === null) {
-			return null;
+		if (textBytes > MAX_ARTICLE_BYTES) {
+			return { ok: false, reason: "response exceeded the configured size limit" };
 		}
 
 		return {
-			text,
-			url: finalUrl,
+			ok: true,
+			response: {
+				text,
+				url,
+			},
 		};
 	} catch (error) {
-		if (error instanceof Error && error.name === "AbortError") {
-			return null;
+		if (error instanceof Error && error.message === "Article request timed out.") {
+			return { ok: false, reason: "request timed out or was aborted" };
 		}
 
 		throw error;
-	} finally {
-		window.clearTimeout(timeoutId);
 	}
 }
 
-async function readResponseTextWithLimit(response: Response, controller: AbortController): Promise<string | null> {
-	if (!response.body) {
-		return null;
-	}
+function requestUrlWithTimeout(params: Parameters<typeof requestUrl>[0]) {
+	return new Promise<Awaited<ReturnType<typeof requestUrl>>>((resolve, reject) => {
+		const timeoutId = window.setTimeout(() => reject(new Error("Article request timed out.")), ARTICLE_REQUEST_TIMEOUT_MS);
 
-	const reader = response.body.getReader();
-	const decoder = createTextDecoder(response.headers.get("content-type"));
-	let receivedBytes = 0;
-	let text = "";
-
-	try {
-		while (true) {
-			const { done, value } = await reader.read();
-
-			if (done) {
-				break;
-			}
-
-			receivedBytes += value.byteLength;
-
-			if (receivedBytes > MAX_ARTICLE_BYTES) {
-				controller.abort();
-				await reader.cancel().catch(() => undefined);
-				throw new Error("Article source is larger than the configured safety limit.");
-			}
-
-			text += decoder.decode(value, { stream: true });
-		}
-
-		text += decoder.decode();
-		return text;
-	} catch (error) {
-		if (error instanceof Error && error.name === "AbortError") {
-			return null;
-		}
-
-		throw error;
-	}
+		void requestUrl(params)
+			.then((response) => resolve(response))
+			.catch((error: unknown) => reject(error instanceof Error ? error : new Error(String(error))))
+			.finally(() => window.clearTimeout(timeoutId));
+	});
 }
 
 function parseSafeArticleUrl(value: string): string | null {
@@ -304,20 +300,6 @@ function parseContentLength(value: string | null): number | null {
 	const contentLength = Number.parseInt(value, 10);
 
 	return Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : null;
-}
-
-function createTextDecoder(contentType: string | null): TextDecoder {
-	try {
-		return new TextDecoder(getCharset(contentType) || "utf-8");
-	} catch {
-		return new TextDecoder();
-	}
-}
-
-function getCharset(contentType: string | null): string | null {
-	const charsetMatch = contentType?.match(/;\s*charset=([^;]+)/i);
-
-	return charsetMatch?.[1]?.trim().replace(/^["']|["']$/g, "") || null;
 }
 
 function extractReadableHtml(source: string, url: string, options: ExtractReadableHtmlOptions): string {

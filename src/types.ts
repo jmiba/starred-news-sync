@@ -7,6 +7,7 @@ export type ReaderProvider =
 	| "miniflux";
 
 export type ArticleSourceMode = "missing" | "always";
+export type DebugViewMode = "json" | "fields";
 
 export interface StarredNewsSyncSettings {
 	provider: ReaderProvider;
@@ -26,6 +27,9 @@ export interface StarredNewsSyncSettings {
 	fetchArticleSource: boolean;
 	articleSourceMode: ArticleSourceMode;
 	includeRemoteImages: boolean;
+	includeDebugView: boolean;
+	debugViewMode: DebugViewMode;
+	enableDebugLogging: boolean;
 	noteTags: string;
 	syncOnStartup: boolean;
 	autoSync: boolean;

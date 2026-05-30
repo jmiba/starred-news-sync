@@ -44,6 +44,8 @@ Other likely compatible readers include services or servers that expose Google R
 - **Skip duplicate links**: Optional. Skips reader items whose URL already appears in configured YAML frontmatter fields inside the output folder.
 - **Duplicate URL property**: YAML frontmatter property compared with incoming item URLs. Defaults to `url`; comma-separated legacy names are supported.
 - **Note template**: Optional vault path to a Markdown template. If Templater is installed, Templater commands are rendered with the imported RSS item injected as `rss`.
+- **Include debug view**: Optional. Appends a collapsed debug section to each imported note showing the normalized incoming item as either formatted JSON or a simple field list.
+- **Enable debug logging**: Optional. Writes per-item import and article-fetch decisions to the developer console so you can see why an item was skipped, fetched, or left unchanged.
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
 - **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or blank, or always preferred over reader content.
 - **Include remote images**: Optional. Keeps safe HTTP and HTTPS image links from fetched article pages. Off by default because previewing notes may contact image hosts.
@@ -188,6 +190,8 @@ tags:
 ```
 
 If Templater is not installed, the plugin still replaces simple placeholders such as `{{rss.title}}`, `{{rss.contentMarkdown}}`, and `{{content.markdown}}`. Templater JavaScript blocks only run when Templater is installed. Use templates you trust, because Templater templates can execute JavaScript.
+
+If **Include debug view** is enabled, imported notes also end with a collapsed Obsidian callout that shows the normalized incoming item. Use **Formatted JSON** to inspect the exact serialized values visible to templates, or **Field view** for a one-field-per-line summary.
 
 If you want to perform additional AI processing of the imported news items (e.g. automatic tagging, abstract writing etc.), consider using the [AI for Templater](https://community.obsidian.md/plugins/ai-templater) plugin.
 

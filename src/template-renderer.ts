@@ -1,7 +1,7 @@
 import { App, normalizePath, TFile } from "obsidian";
 import { IMPORT_HASH_FRONTMATTER_PROPERTY } from "./constants";
 import { htmlToMarkdown } from "./utils/html-to-markdown";
-import type { StarredNewsItem, StarredNewsSyncSettings } from "./types";
+import type { DebugViewMode, StarredNewsItem, StarredNewsSyncSettings } from "./types";
 
 const TEMPLATER_PLUGIN_ID = "templater-obsidian";
 const TEMPLATER_CREATE_NEW_RUN_MODE = 0;
@@ -157,6 +157,21 @@ export function formatDefaultNote(context: NoteTemplateContext): string {
 	}
 
 	return lines.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+export function appendDebugView(
+	markdown: string,
+	context: NoteTemplateContext,
+	settings: StarredNewsSyncSettings
+): string {
+	if (!settings.includeDebugView) {
+		return markdown;
+	}
+
+	const debugBlock = formatDebugBlock(context.item, settings.debugViewMode);
+	const trimmed = markdown.replace(/\s+$/u, "");
+
+	return `${trimmed}\n\n${debugBlock}\n`;
 }
 
 export function ensureImportHashFrontmatter(markdown: string, shortHash: string): string {
@@ -369,4 +384,25 @@ function parseTags(value: string): string[] {
 	}
 
 	return tags;
+}
+
+function formatDebugBlock(item: Record<string, string>, mode: DebugViewMode): string {
+	const title = mode === "json" ? "Imported item debug JSON" : "Imported item debug fields";
+	const body = mode === "json" ? formatDebugJson(item) : formatDebugFields(item);
+
+	return [`> [!info]- ${title}`, ...prefixCalloutLines(body)].join("\n");
+}
+
+function formatDebugJson(item: Record<string, string>): string {
+	return ["```json", JSON.stringify(item, null, 2), "```"].join("\n");
+}
+
+function formatDebugFields(item: Record<string, string>): string {
+	const lines = Object.entries(item).map(([key, value]) => `${key}: ${JSON.stringify(value)}`);
+
+	return ["```text", ...lines, "```"].join("\n");
+}
+
+function prefixCalloutLines(content: string): string[] {
+	return content.split("\n").map((line) => (line ? `> ${line}` : ">"));
 }

@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import type StarredNewsSyncPlugin from "./main";
-import type { ArticleSourceMode, ReaderProvider, StarredNewsSyncSettings } from "./types";
+import type { ArticleSourceMode, DebugViewMode, ReaderProvider, StarredNewsSyncSettings } from "./types";
 
 export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	provider: "google-reader",
@@ -20,6 +20,9 @@ export const DEFAULT_SETTINGS: StarredNewsSyncSettings = {
 	fetchArticleSource: false,
 	articleSourceMode: "missing",
 	includeRemoteImages: false,
+	includeDebugView: false,
+	debugViewMode: "json",
+	enableDebugLogging: false,
 	noteTags: "rss-starred, news",
 	syncOnStartup: false,
 	autoSync: false,
@@ -224,6 +227,42 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+			new Setting(containerEl)
+				.setName("Include debug view")
+				.setDesc("Append a collapsed debug section showing the normalized incoming item for template inspection.")
+				.addToggle((toggle) => {
+					toggle.setValue(settings.includeDebugView).onChange(async (value) => {
+						settings.includeDebugView = value;
+						await this.saveAndRefresh();
+					});
+				});
+
+			if (settings.includeDebugView) {
+				new Setting(containerEl)
+					.setName("Debug view format")
+					.setDesc("Choose whether the debug section shows pretty JSON or a simple field list.")
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("json", "Formatted JSON")
+							.addOption("fields", "Field view")
+							.setValue(settings.debugViewMode)
+							.onChange(async (value) => {
+								settings.debugViewMode = value as DebugViewMode;
+								await this.plugin.saveSettings();
+							});
+					});
+			}
+
+			new Setting(containerEl)
+				.setName("Enable debug logging")
+				.setDesc("Write per-item import and article fetch decisions to the developer console for troubleshooting.")
+				.addToggle((toggle) => {
+					toggle.setValue(settings.enableDebugLogging).onChange(async (value) => {
+						settings.enableDebugLogging = value;
+						await this.plugin.saveSettings();
+					});
+				});
 
 		new Setting(containerEl)
 			.setName("Include article content")
