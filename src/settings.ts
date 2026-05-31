@@ -122,7 +122,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 		if (settings.provider === "inoreader") {
 			new Setting(containerEl)
 				.setName("Inoreader app identifier")
-				.setDesc("Optional. Needed only for legacy client login integrations that use app authentication.")
+				.setDesc("Optional. Legacy ClientLogin only. Leave blank when using an OAuth bearer token.")
 				.addText((text) => {
 					text.setValue(settings.appId).onChange(async (value) => {
 						settings.appId = value.trim();
@@ -132,7 +132,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName("Inoreader app key")
-				.setDesc("Optional. Pair this with the app identifier when using legacy client login.")
+				.setDesc("Optional. Legacy ClientLogin only. Pair with the app identifier; not used for OAuth bearer tokens.")
 				.addText((text) => {
 					text.inputEl.type = "password";
 					text.setValue(settings.appKey).onChange(async (value) => {
@@ -383,7 +383,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 			case "tiny-tiny-rss":
 				return "Tiny Tiny RSS example: https://rss.example.com/tt-rss/api/";
 			case "inoreader":
-				return "Use https://www.inoreader.com unless you have a compatible proxy.";
+					return "Use https://www.inoreader.com. The plugin accepts a pasted bearer token or legacy ClientLogin credentials.";
 			case "feedly":
 				return "Use https://api.feedly.com/v3 for Feedly API tokens.";
 			case "miniflux":
@@ -410,7 +410,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 			case "miniflux":
 				return "Required. Paste a Miniflux API token.";
 			case "inoreader":
-				return "Optional. Paste an OAuth bearer token to avoid storing your Inoreader password.";
+					return "Preferred. Paste an Inoreader OAuth bearer token. This plugin does not perform the OAuth redirect or refresh expired tokens for you.";
 			case "google-reader":
 				return "Optional. Paste a GoogleLogin token if you do not want to use username/password login.";
 			case "fever":

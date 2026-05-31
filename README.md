@@ -23,7 +23,7 @@ Import starred or saved RSS reader items into Obsidian as Markdown notes with YA
 | --- | --- | --- |
 | FreshRSS | Google Reader-compatible or Fever-compatible | Use the API URLs from FreshRSS settings, usually `/api/greader.php` or `/api/fever.php`, with the FreshRSS API password. |
 | Tiny Tiny RSS | Tiny Tiny RSS | Enable the JSON API and use the `/api/` endpoint. Starred items are imported from the special starred feed. |
-| Inoreader | Inoreader | Use `https://www.inoreader.com`. OAuth bearer token is preferred; legacy ClientLogin can use username/password plus optional App ID/App Key. |
+| Inoreader | Inoreader | Use `https://www.inoreader.com`. Paste an OAuth bearer token when possible. The plugin can also use legacy ClientLogin with username/password and optional App ID/App Key, but it does not run the browser OAuth redirect flow for you. |
 | Feedly | Feedly | Requires a Feedly API bearer token and a stream ID. For Feedly Teams this is usually a board, folder, or AI Feed stream ID. |
 | Miniflux | Miniflux | Use a Miniflux API token. The plugin fetches `/v1/entries?starred=true`. Miniflux can also be used through its Fever API. |
 
@@ -39,6 +39,7 @@ Other likely compatible readers include services or servers that expose Google R
   - Miniflux: `https://rss.example.com`
 - **Username** and **Password or API password**: Used by Google Reader-compatible, Fever, Tiny Tiny RSS, and legacy Inoreader flows.
 - **Access token**: Used by Feedly, Miniflux, OAuth-based Inoreader, or precomputed GoogleLogin/Fever tokens.
+- **Inoreader app identifier** and **Inoreader app key**: Optional. Only used for legacy Inoreader ClientLogin. Leave them blank when using an OAuth bearer token.
 - **Output folder**: Destination folder in the vault.
 - **Note tags**: Comma-separated YAML tags added to imported notes.
 - **Skip duplicate links**: Optional. Skips reader items whose URL already appears in configured YAML frontmatter fields inside the output folder.
@@ -53,6 +54,30 @@ Other likely compatible readers include services or servers that expose Google R
 - **Automatic sync**: Runs sync on an interval while Obsidian is open.
 
 Credentials are stored in this plugin's Obsidian data file. By default, the plugin only sends network requests to the reader API URL you configure.
+
+### Inoreader setup
+
+Set **Reader API** to **Inoreader** and **API URL** to `https://www.inoreader.com` unless you are using a proxy.
+
+Preferred setup, using OAuth bearer tokens:
+
+1. Register an app in Inoreader under **Preferences -> Other -> Create new application**.
+2. Obtain an access token outside the plugin. The plugin accepts the finished bearer token, but it does not open the consent page, receive the redirect callback, exchange the authorization code with a POST request, or refresh expired tokens.
+3. If you do not want to build your own callback endpoint, Inoreader documents a working manual path with the Google OAuth 2.0 Playground:
+  - Authorization endpoint: `https://www.inoreader.com/oauth2/auth?state=test`
+  - Token endpoint: `https://www.inoreader.com/oauth2/token`
+  - OAuth flow: Server-side
+  - Scope: `read`
+4. After the playground exchanges the authorization code, paste the returned `access_token` into **Access token** in this plugin.
+5. Leave **Username**, **Password or API password**, **Inoreader app identifier**, and **Inoreader app key** blank when using a bearer token.
+
+Legacy setup, using ClientLogin:
+
+1. Fill in **Username** and **Password or API password**.
+2. Add **Inoreader app identifier** and **Inoreader app key** only if your account or app registration requires Inoreader app authentication for ClientLogin requests.
+3. This path uses Inoreader's older `GoogleLogin auth=...` flow, not OAuth 2.0.
+
+If Inoreader returns `403`, the usual causes are invalid or missing app credentials for the legacy ClientLogin path, API access restrictions on the Inoreader account or app, or an expired or invalid OAuth token.
 
 The ` - RSS <hash>` filename suffix is still used for newly imported notes so items with the same title but different URLs do not target the same file path. The plugin also stores the same stable hash as `rss_hash` in imported note frontmatter and recognizes the legacy filename suffix for older imports. Existing imports are skipped when that hash is found in the configured **Output folder** and its subfolders, so you can rename imported notes as long as `rss_hash` remains in the note frontmatter. When **Skip duplicate links** is enabled, the plugin also scans Markdown frontmatter in that folder tree for the configured URL property names before importing. URLs are compared after light normalization: surrounding whitespace and URL fragments are ignored, hostnames are compared case-insensitively, default HTTP/HTTPS ports are ignored, and trailing path slashes are ignored. Query strings are preserved.
 
@@ -252,6 +277,9 @@ The workflow fails if any asset is missing or empty, or if the tag does not matc
 - [FreshRSS Google Reader-compatible API](https://freshrss.github.io/FreshRSS/en/developers/06_GoogleReader_API.html)
 - [FreshRSS Fever API](https://freshrss.github.io/FreshRSS/en/developers/06_Fever_API.html)
 - [Tiny Tiny RSS API reference](https://tt-rss.org/docs/API-Reference.html)
+- [Inoreader OAuth 2.0 docs](https://www.inoreader.com/developers/oauth)
+- [Inoreader app registration](https://www.inoreader.com/developers/register-app)
+- [Inoreader app authentication](https://www.inoreader.com/developers/app-auth)
 - [Inoreader stream IDs](https://www.inoreader.com/developers/stream-ids)
 - [Feedly collect articles API](https://developers.feedly.com/reference/collect-articles)
 - [Miniflux API reference](https://miniflux.app/docs/api.html)

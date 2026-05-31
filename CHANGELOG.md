@@ -1,4 +1,9 @@
 # Changelog
+
+## 0.1.11 - 2026-05-31
+
+- Clarified Inoreader setup in the README and settings UI, including the supported OAuth bearer-token workflow, the legacy ClientLogin path, and the limited role of App ID/App Key fields.
+
 ## 0.1.10 - 2026-05-31
 
 - Expanded the imported note debug view so it can show either normalized item fields, a simple field list, or the raw per-reader API payload.
