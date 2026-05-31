@@ -1,4 +1,10 @@
 # Changelog
+## 0.1.10 - 2026-05-31
+
+- Expanded the imported note debug view so it can show either normalized item fields, a simple field list, or the raw per-reader API payload.
+- Added `rss.rawApiItem` to the template context so advanced templates can inspect the original reader response before local enrichment.
+- Documented the new debug view options and the provider-specific `rss.rawApiItem` field in the README template reference.
+
 ## 0.1.9 - 2026-05-30
 
 - Switched article source fetching to Obsidian's non-CORS request API so article enrichment can work against sites that block browser-style cross-origin fetches.
