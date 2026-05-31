@@ -68,6 +68,7 @@ export class FeverClient implements ReaderClient {
 					title: item.title || "Untitled RSS item",
 					url: item.url || "",
 					reader: "Fever API",
+					rawApiItem: item,
 					author: item.author || undefined,
 					feedTitle: feed?.title,
 					feedUrl: feed?.site_url || feed?.url,

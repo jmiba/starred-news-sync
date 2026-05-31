@@ -7,7 +7,7 @@ export type ReaderProvider =
 	| "miniflux";
 
 export type ArticleSourceMode = "missing" | "always";
-export type DebugViewMode = "json" | "fields";
+export type DebugViewMode = "json" | "fields" | "raw-json";
 
 export interface StarredNewsSyncSettings {
 	provider: ReaderProvider;
@@ -41,6 +41,7 @@ export interface StarredNewsItem {
 	title: string;
 	url: string;
 	reader: string;
+	rawApiItem?: unknown;
 	author?: string;
 	feedTitle?: string;
 	feedUrl?: string;

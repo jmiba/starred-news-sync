@@ -44,7 +44,7 @@ Other likely compatible readers include services or servers that expose Google R
 - **Skip duplicate links**: Optional. Skips reader items whose URL already appears in configured YAML frontmatter fields inside the output folder.
 - **Duplicate URL property**: YAML frontmatter property compared with incoming item URLs. Defaults to `url`; comma-separated legacy names are supported.
 - **Note template**: Optional vault path to a Markdown template. If Templater is installed, Templater commands are rendered with the imported RSS item injected as `rss`.
-- **Include debug view**: Optional. Appends a collapsed debug section to each imported note showing the normalized incoming item as either formatted JSON or a simple field list.
+- **Include debug view**: Optional. Appends a collapsed debug section to each imported note showing either the normalized incoming item, the raw per-item reader payload, or a simple field list.
 - **Enable debug logging**: Optional. Writes per-item import and article-fetch decisions to the developer console so you can see why an item was skipped, fetched, or left unchanged.
 - **Fetch article source text**: Optional. Requests each article page for new imports, extracts readable content, and records `content_source` and `content_fetched_at` in frontmatter.
 - **Source fetch mode**: Choose whether article pages are fetched only when reader content is missing or blank, or always preferred over reader content.
@@ -73,7 +73,9 @@ Set **Note template** to a vault path such as `Templates/Starred news item`. Wik
 - `item`: alias for `rss.item`, containing normalized reader fields.
 - `content`: alias for `rss.content`, containing selected HTML/Markdown content fields.
 
-Common fields include `rss.title`, `rss.url`, `rss.reader`, `rss.author`, `rss.feedTitle`, `rss.feedUrl`, `rss.publishedAt`, `rss.updatedAt`, `rss.importedAt`, `rss.tags`, `rss.notePath`, `rss.fileName`, `rss.shortHash`, `rss.byline`, `rss.contentHtml`, `rss.summaryHtml`, `rss.selectedContentHtml`, `rss.contentMarkdown`, `rss.summaryMarkdown`, `rss.contentSource`, and `rss.contentFetchedAt`. The default YAML fields are also available as `rss.frontmatter`.
+Common fields include `rss.title`, `rss.url`, `rss.reader`, `rss.author`, `rss.feedTitle`, `rss.feedUrl`, `rss.publishedAt`, `rss.updatedAt`, `rss.importedAt`, `rss.tags`, `rss.notePath`, `rss.fileName`, `rss.shortHash`, `rss.byline`, `rss.contentHtml`, `rss.summaryHtml`, `rss.selectedContentHtml`, `rss.contentMarkdown`, `rss.summaryMarkdown`, `rss.contentSource`, `rss.contentFetchedAt`, and `rss.rawApiItem`. The default YAML fields are also available as `rss.frontmatter`.
+
+`rss.rawApiItem` contains the preserved per-item payload returned by the reader before local enrichment such as article fetching. Its shape is provider-specific and may vary across reader servers, so treat it as debug data rather than a stable cross-provider template contract.
 
 Sample `rss` object with representative values:
 
@@ -92,6 +94,22 @@ Sample `rss` object with representative values:
   "summaryHtml": "<p>Short reader summary.</p>",
   "contentSource": "article_url",
   "contentFetchedAt": "2026-05-30T11:42:13.000Z",
+  "rawApiItem": {
+    "id": "tag:example.com,2026:starred/12345",
+    "title": "Shipping small plugins without breaking your vault",
+    "canonical": [
+      {
+        "href": "https://example.com/posts/shipping-small-plugins"
+      }
+    ],
+    "origin": {
+      "title": "Example Engineering",
+      "htmlUrl": "https://example.com/feed.xml"
+    },
+    "content": {
+      "content": "<p>Full article body.</p><p>It has several paragraphs.</p>"
+    }
+  },
   "importedAt": "2026-05-30T11:42:14.000Z",
   "tags": ["rss", "starred"],
   "notePath": "News/Shipping small plugins without breaking your vault - RSS a1b2c3d4.md",
@@ -152,6 +170,7 @@ Using the sample object above, these template markers render to these values:
 - `{{item.feedTitle}}` -> `Example Engineering`
 - `{{content.markdown}}` -> same value as `{{rss.contentMarkdown}}`
 - `{{content.summaryMarkdown}}` -> same value as `{{rss.summaryMarkdown}}`
+- `{{rss.rawApiItem}}` -> pretty-printed JSON of the preserved provider item payload
 
 `summaryMarkdown` and `contentMarkdown` are intentionally different fields. `summaryMarkdown` always comes from the reader-provided summary. `contentMarkdown` comes from the content selected for the note body, which is either full article content or the summary when full article content is unavailable or disabled. That means the two fields are identical only when the reader exposes no separate full content, or when the selected note content falls back to the summary.
 
@@ -191,7 +210,7 @@ tags:
 
 If Templater is not installed, the plugin still replaces simple placeholders such as `{{rss.title}}`, `{{rss.contentMarkdown}}`, and `{{content.markdown}}`. Templater JavaScript blocks only run when Templater is installed. Use templates you trust, because Templater templates can execute JavaScript.
 
-If **Include debug view** is enabled, imported notes also end with a collapsed Obsidian callout that shows the normalized incoming item. Use **Formatted JSON** to inspect the exact serialized values visible to templates, or **Field view** for a one-field-per-line summary.
+If **Include debug view** is enabled, imported notes also end with a collapsed Obsidian callout. Use **Formatted JSON** to inspect the exact normalized values visible to templates after local enrichment, **Raw API JSON** to inspect the preserved per-item payload from the reader before local processing, or **Field view** for a one-field-per-line summary of the normalized item. The raw debug view shows the item object returned inside the reader response, not the entire paginated API response envelope. The same preserved payload is also available to templates as `rss.rawApiItem`.
 
 If you want to perform additional AI processing of the imported news items (e.g. automatic tagging, abstract writing etc.), consider using the [AI for Templater](https://community.obsidian.md/plugins/ai-templater) plugin.
 

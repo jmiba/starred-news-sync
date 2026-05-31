@@ -43,6 +43,7 @@ export class MinifluxClient implements ReaderClient {
 			title: entry.title || "Untitled RSS item",
 			url: entry.url || "",
 			reader: "Miniflux",
+			rawApiItem: entry,
 			author: entry.author || undefined,
 			feedTitle: entry.feed?.title,
 			feedUrl: entry.feed?.feed_url || entry.feed?.site_url,

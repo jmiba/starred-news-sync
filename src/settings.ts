@@ -245,6 +245,7 @@ export class StarredNewsSettingTab extends PluginSettingTab {
 					.addDropdown((dropdown) => {
 						dropdown
 							.addOption("json", "Formatted JSON")
+							.addOption("raw-json", "Raw API JSON")
 							.addOption("fields", "Field view")
 							.setValue(settings.debugViewMode)
 							.onChange(async (value) => {

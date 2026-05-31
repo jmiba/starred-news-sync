@@ -136,6 +136,7 @@ export class GoogleReaderClient implements ReaderClient {
 			title: item.title || "Untitled RSS item",
 			url: firstDefined(item.canonical, item.alternate) || "",
 			reader: this.readerName,
+			rawApiItem: item,
 			author: item.author || undefined,
 			feedTitle: item.origin?.title,
 			feedUrl: item.origin?.htmlUrl || item.origin?.streamId,

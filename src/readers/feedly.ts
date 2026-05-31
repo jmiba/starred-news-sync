@@ -80,6 +80,7 @@ export class FeedlyClient implements ReaderClient {
 			title: item.title || "Untitled RSS item",
 			url,
 			reader: "Feedly",
+			rawApiItem: item,
 			author: item.author || undefined,
 			feedTitle: item.origin?.title,
 			feedUrl: item.origin?.htmlUrl || item.origin?.streamId,

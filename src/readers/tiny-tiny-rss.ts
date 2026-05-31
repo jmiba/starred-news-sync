@@ -46,6 +46,7 @@ export class TinyTinyRssClient implements ReaderClient {
 				title: headline.title || "Untitled RSS item",
 				url: headline.link || "",
 				reader: "Tiny Tiny RSS",
+				rawApiItem: headline,
 				author: headline.author || undefined,
 				feedTitle: headline.feed_title,
 				feedUrl: headline.feed_url,

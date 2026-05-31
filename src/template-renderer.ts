@@ -27,6 +27,7 @@ export interface NoteTemplateContext {
 	title: string;
 	url: string;
 	reader: string;
+	rawApiItem?: unknown;
 	author: string;
 	feedTitle: string;
 	feedUrl: string;
@@ -96,6 +97,7 @@ export function buildNoteTemplateContext(
 
 	return {
 		...itemFields,
+		rawApiItem: item.rawApiItem,
 		importedAt,
 		tags,
 		notePath: identity.path,
@@ -168,7 +170,7 @@ export function appendDebugView(
 		return markdown;
 	}
 
-	const debugBlock = formatDebugBlock(context.item, settings.debugViewMode);
+	const debugBlock = formatDebugBlock(context, settings.debugViewMode);
 	const trimmed = markdown.replace(/\s+$/u, "");
 
 	return `${trimmed}\n\n${debugBlock}\n`;
@@ -386,15 +388,25 @@ function parseTags(value: string): string[] {
 	return tags;
 }
 
-function formatDebugBlock(item: Record<string, string>, mode: DebugViewMode): string {
-	const title = mode === "json" ? "Imported item debug JSON" : "Imported item debug fields";
-	const body = mode === "json" ? formatDebugJson(item) : formatDebugFields(item);
+function formatDebugBlock(context: NoteTemplateContext, mode: DebugViewMode): string {
+	const title =
+		mode === "json"
+			? "Imported item debug JSON"
+			: mode === "raw-json"
+				? "Imported item raw API JSON"
+				: "Imported item debug fields";
+	const body =
+		mode === "json"
+			? formatDebugJson(context.item)
+			: mode === "raw-json"
+				? formatDebugJson(context.rawApiItem ?? { unavailable: "Raw API item was not captured for this import." })
+				: formatDebugFields(context.item);
 
 	return [`> [!info]- ${title}`, ...prefixCalloutLines(body)].join("\n");
 }
 
-function formatDebugJson(item: Record<string, string>): string {
-	return ["```json", JSON.stringify(item, null, 2), "```"].join("\n");
+function formatDebugJson(value: unknown): string {
+	return ["```json", JSON.stringify(value, null, 2), "```"].join("\n");
 }
 
 function formatDebugFields(item: Record<string, string>): string {
